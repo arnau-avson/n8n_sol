@@ -129,13 +129,21 @@ function showPredictionHistory() {
         return;
     }
 
+    // Ordenar predicciones por timestamp, más recientes primero
+    predictions.sort((a, b) => b.timestamp - a.timestamp);
+
     // Crear modal para el histórico
     const modal = document.createElement('div');
     modal.className = 'fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50';
     modal.innerHTML = `
         <div class="bg-black border border-gray-800 rounded-lg p-6 max-w-4xl w-full mx-4 max-h-[90vh] overflow-y-auto">
             <div class="flex justify-between items-center mb-6">
-                <h3 class="text-white text-lg font-light">Histórico de Predicciones</h3>
+                <div class="flex items-center gap-4">
+                    <h3 class="text-white text-lg font-light">Histórico de Predicciones</h3>
+                    <button onclick="clearAllPredictions()" class="text-red-500 hover:text-red-400 text-xs uppercase tracking-wider">
+                        Limpiar historial
+                    </button>
+                </div>
                 <button class="text-gray-500 hover:text-gray-400" onclick="this.parentElement.parentElement.parentElement.remove()">×</button>
             </div>
             <div class="grid gap-4" id="predictionsHistory">
@@ -149,9 +157,14 @@ function showPredictionHistory() {
                                     Predicción: ${p.predictedChange > 0 ? '+' : ''}${p.predictedChange.toFixed(2)}%
                                 </p>
                             </div>
-                            <button onclick="replayPrediction(${index})" class="text-gray-500 hover:text-gray-300 text-sm border border-gray-800 rounded px-3 py-1">
-                                Ver Gráfico
-                            </button>
+                            <div class="flex gap-2">
+                                <button onclick="replayPrediction(${index})" class="text-gray-500 hover:text-gray-300 text-sm border border-gray-800 rounded px-3 py-1">
+                                    Ver Gráfico
+                                </button>
+                                <button onclick="deletePrediction(${index})" class="text-red-500 hover:text-red-400 text-sm border border-red-900 rounded px-3 py-1">
+                                    Eliminar
+                                </button>
+                            </div>
                         </div>
                         <p class="text-gray-500 text-sm mt-2">${p.analysis}</p>
                     </div>
@@ -185,6 +198,29 @@ async function replayPrediction(index) {
     document.querySelector('.fixed.inset-0').remove();
     
     showNotification('Mostrando predicción del ' + new Date(prediction.timestamp).toLocaleString());
+}
+
+// Función para eliminar una predicción específica
+function deletePrediction(index) {
+    if (!confirm('¿Estás seguro de que quieres eliminar esta predicción?')) return;
+    
+    let predictions = JSON.parse(localStorage.getItem('cryptoPredictions') || '[]');
+    predictions.splice(index, 1);
+    localStorage.setItem('cryptoPredictions', JSON.stringify(predictions));
+    
+    // Actualizar la vista
+    document.querySelector('.fixed.inset-0').remove();
+    showPredictionHistory();
+    showNotification('Predicción eliminada');
+}
+
+// Función para limpiar todas las predicciones
+function clearAllPredictions() {
+    if (!confirm('¿Estás seguro de que quieres eliminar todo el historial de predicciones?')) return;
+    
+    localStorage.setItem('cryptoPredictions', '[]');
+    document.querySelector('.fixed.inset-0').remove();
+    showNotification('Historial de predicciones eliminado');
 }
 
 // Event listener para el botón de histórico
