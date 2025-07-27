@@ -1,0 +1,476 @@
+{
+    "name": "My workflow",
+    "nodes": [
+        {
+            "parameters": {
+                "url": "=https://newsapi.org/v2/everything?q=solana&language=en&sortBy=publishedAt&from={{new Date(Date.now() - 24*60*60*1000).toISOString().split('T')[0]}}&to={{new Date().toISOString().split('T')[0]}}&apiKey=426a4a4c21fb4364b3f4c8d3ec5b9369",
+                "options": {}
+            },
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 4.2,
+            "position": [
+                0,
+                400
+            ],
+            "id": "315cba7a-e527-43dd-8b6c-d6e1aa5b7801",
+            "name": "Noticias SOLANA"
+        },
+        {
+            "parameters": {
+                "url": "=https://newsapi.org/v2/everything?q=bitcoin&language=en&sortBy=publishedAt&from={{new Date(Date.now() - 24*60*60*1000).toISOString().split('T')[0]}}&to={{new Date().toISOString().split('T')[0]}}&apiKey=426a4a4c21fb4364b3f4c8d3ec5b9369",
+                "options": {}
+            },
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 4.2,
+            "position": [
+                0,
+                224
+            ],
+            "id": "08a4d256-ff44-4f12-ae91-9e4703711ea4",
+            "name": "Noticias BITCOIN"
+        },
+        {
+            "parameters": {
+                "jsCode": "// Obtener entradas de noticias y precios\nconst newsInput = $input.all().find(item => item.json.articles);\nconst response = newsInput?.json || {};\nconst articles = response.articles || [];\n\nconst pricesInput = $input.all().find(item => Array.isArray(item.json.prices));\nconst prices = pricesInput?.json?.prices || [];\n\nif (prices.length < 2) {\n    return [{ json: { error: 'No se encontraron precios suficientes para SOL' } }];\n}\n\n// Configuración\nconst asset = 'SOL';\nconst now = new Date();\nconst lookbackPeriod = 24 * 60 * 60 * 1000; // 24 horas\nconst windowStart = new Date(now.getTime() - lookbackPeriod);\n\n// Cálculo de precio y variación en 24h\nconst currentPrice = prices[prices.length - 1][1];\nconst price24hAgo = prices[0][1];\nconst priceMovement = currentPrice - price24hAgo;\nconst movementPercentage = (priceMovement / price24hAgo) * 100;\n\n// Palabras clave para análisis de sentimiento\nconst positiveWords = ['gain', 'rise', 'bull', 'profit', 'surge', 'growth', 'strong', 'up', 'bullish', 'rally', 'pump'];\nconst negativeWords = ['loss', 'fall', 'bear', 'drop', 'weak', 'down', 'decline', 'crash', 'bearish', 'dump'];\n\nlet score = 0;\nlet recentNewsCount = 0;\n\n// Evaluar sentimiento en noticias recientes relacionadas con SOL\narticles.forEach(article => {\n    const publishedDate = new Date(article.publishedAt);\n    const text = (article.title + ' ' + (article.description || '')).toLowerCase();\n\n    // Solo analizar si mencionan Solana o SOL\n    if (publishedDate > windowStart && (text.includes('solana') || text.includes(' sol '))) {\n        recentNewsCount++;\n        const cleanedText = text.replace(/[^a-z\\s]/g, '');\n\n        positiveWords.forEach(word => {\n            if (cleanedText.includes(word)) score += 1;\n        });\n        negativeWords.forEach(word => {\n            if (cleanedText.includes(word)) score -= 1;\n        });\n    }\n});\n\n// Lógica de decisión\nlet signal = 'Mantener posición';\nlet confidence = 'Baja';\n\nif (score > 2 && movementPercentage > 1) {\n    signal = `COMPRAR ${asset}`;\n    confidence = 'Alta';\n} else if (score > 0 && movementPercentage > 0) {\n    signal = `Considerar COMPRA de ${asset}`;\n    confidence = 'Media';\n} else if (score < -2 || movementPercentage < -3) {\n    signal = `EVITAR comprar ${asset}`;\n    confidence = 'Alta';\n}\n\n// Proyección basada en sentimiento y precio\nconst projectedChange = (score * 0.5) + (movementPercentage * 0.3);\n\n// Retorno final\nreturn [{\n    json: {\n        signal: `${signal} (Confianza: ${confidence})`,\n        analysis: `Precio actual: $${currentPrice.toFixed(2)} | Cambio 24h: ${movementPercentage.toFixed(2)}% | Noticias recientes de SOL: ${recentNewsCount} | Score: ${score}`,\n        projectedMovement: `Movimiento esperado próximas horas: ${projectedChange > 0 ? '+' : ''}${projectedChange.toFixed(2)}%`,\n        timestamp: now.toISOString(),\n        asset,\n        currentPrice: currentPrice.toFixed(2),\n        movement24h: movementPercentage.toFixed(2),\n        sentimentScore: score,\n        recentNews: recentNewsCount\n    }\n}];"
+            },
+            "type": "n8n-nodes-base.code",
+            "typeVersion": 2,
+            "position": [
+                400,
+                400
+            ],
+            "id": "151f8d58-f29d-4c0a-9d35-17c06cb92d47",
+            "name": "Codigo SOLANA"
+        },
+        {
+            "parameters": {
+                "jsCode": "// Obtener entradas de noticias y precios\nconst newsInput = $input.all().find(item => item.json.articles);\nconst response = newsInput?.json || {};\nconst articles = response.articles || [];\n\nconst pricesInput = $input.all().find(item => Array.isArray(item.json.prices));\nconst prices = pricesInput?.json?.prices || [];\n\nif (prices.length < 2) {\n    return [{ json: { error: 'No se encontraron precios suficientes para BTC' } }];\n}\n\n// Configuración\nconst asset = 'BTC';\nconst now = new Date();\nconst lookbackPeriod = 24 * 60 * 60 * 1000; // 24 horas\nconst windowStart = new Date(now.getTime() - lookbackPeriod);\n\n// Cálculo de precio y variación\nconst currentPrice = prices[prices.length - 1][1];\nconst price24hAgo = prices[0][1];\nconst priceMovement = currentPrice - price24hAgo;\nconst movementPercentage = (priceMovement / price24hAgo) * 100;\n\n// Palabras clave para análisis de sentimiento\nconst positiveWords = ['gain', 'rise', 'bull', 'profit', 'surge', 'growth', 'strong', 'up', 'bullish', 'rally', 'pump'];\nconst negativeWords = ['loss', 'fall', 'bear', 'drop', 'weak', 'down', 'decline', 'crash', 'bearish', 'dump'];\n\nlet score = 0;\nlet recentNewsCount = 0;\n\n// Evaluar sentimiento en noticias recientes\narticles.forEach(article => {\n    const publishedDate = new Date(article.publishedAt);\n    if (publishedDate > windowStart) {\n        recentNewsCount++;\n        const combinedText = (article.title + ' ' + (article.description || '')).toLowerCase().replace(/[^a-z\\s]/g, '');\n\n        positiveWords.forEach(word => {\n            if (combinedText.includes(word)) score += 1;\n        });\n        negativeWords.forEach(word => {\n            if (combinedText.includes(word)) score -= 1;\n        });\n    }\n});\n\n// Lógica de decisión\nlet signal = 'Mantener posición';\nlet confidence = 'Baja';\n\nif (score > 2 && movementPercentage > 1) {\n    signal = COMPRAR ${asset};\n    confidence = 'Alta';\n} else if (score > 0 && movementPercentage > 0) {\n    signal = Considerar COMPRA de ${asset};\n    confidence = 'Media';\n} else if (score < -2 || movementPercentage < -3) {\n    signal = EVITAR comprar ${asset};\n    confidence = 'Alta';\n}\n\n// Proyección basada en sentimiento y precio\nconst projectedChange = (score * 0.5) + (movementPercentage * 0.3);\n\n// Retorno final\nreturn [{\n    json: {\n        signal: ${signal} (Confianza: ${confidence}),\n        analysis: Precio actual: $${currentPrice.toFixed(2)} | Cambio 24h: ${movementPercentage.toFixed(2)}% | Noticias recientes: ${recentNewsCount} | Score: ${score},\n        projectedMovement: Movimiento esperado próximas horas: ${projectedChange > 0 ? '+' : ''}${projectedChange.toFixed(2)}%,\n        timestamp: now.toISOString(),\n        asset,\n        currentPrice: currentPrice.toFixed(2),\n        movement24h: movementPercentage.toFixed(2),\n        sentimentScore: score,\n        recentNews: recentNewsCount\n    }\n}];\n"
+            },
+            "type": "n8n-nodes-base.code",
+            "typeVersion": 2,
+            "position": [
+                400,
+                224
+            ],
+            "id": "dfe400d5-53ce-40d9-bd6f-9d59be67f1de",
+            "name": "Codigo BITCOIN"
+        },
+        {
+            "parameters": {
+                "url": "https://api.coingecko.com/api/v3/coins/bitcoin/market_chart",
+                "sendQuery": true,
+                "queryParameters": {
+                    "parameters": [
+                        {
+                            "name": "vs_currency",
+                            "value": "usd"
+                        },
+                        {
+                            "name": "days",
+                            "value": "1"
+                        }
+                    ]
+                },
+                "options": {}
+            },
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 4.2,
+            "position": [
+                208,
+                224
+            ],
+            "id": "c16a3469-0a14-48cd-a9f4-afe5b794aa30",
+            "name": "Coingecko Bitocin"
+        },
+        {
+            "parameters": {
+                "url": "https://api.coingecko.com/api/v3/coins/solana/market_chart",
+                "sendQuery": true,
+                "queryParameters": {
+                    "parameters": [
+                        {
+                            "name": "vs_currency",
+                            "value": "usd"
+                        },
+                        {
+                            "name": "days",
+                            "value": "1"
+                        }
+                    ]
+                },
+                "options": {}
+            },
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 4.2,
+            "position": [
+                208,
+                400
+            ],
+            "id": "6d67438b-0ddc-402b-a7c4-5367cf592dbd",
+            "name": "Coingecko Solana"
+        },
+        {
+            "parameters": {
+                "url": "https://api.coingecko.com/api/v3/coins/ethereum/market_chart",
+                "sendQuery": true,
+                "queryParameters": {
+                    "parameters": [
+                        {
+                            "name": "vs_currency",
+                            "value": "usd"
+                        },
+                        {
+                            "name": "days",
+                            "value": "1"
+                        }
+                    ]
+                },
+                "options": {}
+            },
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 4.2,
+            "position": [
+                208,
+                0
+            ],
+            "id": "bbc24e97-512a-4cf1-9a79-fc1007db821a",
+            "name": "Coingecko Ethereum"
+        },
+        {
+            "parameters": {
+                "url": "=https://newsapi.org/v2/everything?q=Ethereum&language=en&sortBy=publishedAt&from={{new Date(Date.now() - 24*60*60*1000).toISOString().split('T')[0]}}&to={{new Date().toISOString().split('T')[0]}}&apiKey=426a4a4c21fb4364b3f4c8d3ec5b9369",
+                "options": {}
+            },
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 4.2,
+            "position": [
+                0,
+                0
+            ],
+            "id": "78af7bf8-b3d0-402c-be86-a247f3e02db8",
+            "name": "Noticias ETHEREUM"
+        },
+        {
+            "parameters": {
+                "jsCode": "// Obtener entradas de noticias y precios\nconst newsInput = $input.all().find(item => item.json.articles);\nconst response = newsInput?.json || {};\nconst articles = response.articles || [];\n\nconst pricesInput = $input.all().find(item => Array.isArray(item.json.prices));\nconst prices = pricesInput?.json?.prices || [];\n\nif (prices.length < 2) {\n    return [{ json: { error: 'No se encontraron precios suficientes para SOL' } }];\n}\n\n// Configuración\nconst asset = 'ETH';\nconst now = new Date();\nconst lookbackPeriod = 24 * 60 * 60 * 1000; // 24 horas\nconst windowStart = new Date(now.getTime() - lookbackPeriod);\n\n// Cálculo de precio y variación en 24h\nconst currentPrice = prices[prices.length - 1][1];\nconst price24hAgo = prices[0][1];\nconst priceMovement = currentPrice - price24hAgo;\nconst movementPercentage = (priceMovement / price24hAgo) * 100;\n\n// Palabras clave para análisis de sentimiento\nconst positiveWords = ['gain', 'rise', 'bull', 'profit', 'surge', 'growth', 'strong', 'up', 'bullish', 'rally', 'pump'];\nconst negativeWords = ['loss', 'fall', 'bear', 'drop', 'weak', 'down', 'decline', 'crash', 'bearish', 'dump'];\n\nlet score = 0;\nlet recentNewsCount = 0;\n\n// Evaluar sentimiento en noticias recientes relacionadas con SOL\narticles.forEach(article => {\n    const publishedDate = new Date(article.publishedAt);\n    const text = (article.title + ' ' + (article.description || '')).toLowerCase();\n\n    // Solo analizar si mencionan Solana o SOL\n    if (publishedDate > windowStart && (text.includes('solana') || text.includes(' sol '))) {\n        recentNewsCount++;\n        const cleanedText = text.replace(/[^a-z\\s]/g, '');\n\n        positiveWords.forEach(word => {\n            if (cleanedText.includes(word)) score += 1;\n        });\n        negativeWords.forEach(word => {\n            if (cleanedText.includes(word)) score -= 1;\n        });\n    }\n});\n\n// Lógica de decisión\nlet signal = 'Mantener posición';\nlet confidence = 'Baja';\n\nif (score > 2 && movementPercentage > 1) {\n    signal = COMPRAR ${asset};\n    confidence = 'Alta';\n} else if (score > 0 && movementPercentage > 0) {\n    signal = Considerar COMPRA de ${asset};\n    confidence = 'Media';\n} else if (score < -2 || movementPercentage < -3) {\n    signal = EVITAR comprar ${asset};\n    confidence = 'Alta';\n}\n\n// Proyección basada en sentimiento y precio\nconst projectedChange = (score * 0.5) + (movementPercentage * 0.3);\n\n// Retorno final\nreturn [{\n    json: {\n        signal: ${signal} (Confianza: ${confidence}),\n        analysis: Precio actual: $${currentPrice.toFixed(2)} | Cambio 24h: ${movementPercentage.toFixed(2)}% | Noticias recientes de SOL: ${recentNewsCount} | Score: ${score},\n        projectedMovement: Movimiento esperado próximas horas: ${projectedChange > 0 ? '+' : ''}${projectedChange.toFixed(2)}%,\n        timestamp: now.toISOString(),\n        asset,\n        currentPrice: currentPrice.toFixed(2),\n        movement24h: movementPercentage.toFixed(2),\n        sentimentScore: score,\n        recentNews: recentNewsCount\n    }\n}];\n"
+            },
+            "type": "n8n-nodes-base.code",
+            "typeVersion": 2,
+            "position": [
+                400,
+                0
+            ],
+            "id": "5ac843dd-ffd9-44a1-bed9-f71e07b678a2",
+            "name": "Codigo ETHEREUM"
+        },
+        {
+            "parameters": {
+                "httpMethod": "POST",
+                "path": "45ec9f4b-c579-42f3-84db-cd4d9267b647",
+                "responseMode": "responseNode",
+                "options": {}
+            },
+            "type": "n8n-nodes-base.webhook",
+            "typeVersion": 2,
+            "position": [
+                -496,
+                224
+            ],
+            "id": "57ddb17f-b7c4-4220-9093-1c345a4d0bc0",
+            "name": "Webhook",
+            "webhookId": "45ec9f4b-c579-42f3-84db-cd4d9267b647"
+        },
+        {
+            "parameters": {
+                "options": {}
+            },
+            "type": "n8n-nodes-base.respondToWebhook",
+            "typeVersion": 1.1,
+            "position": [
+                688,
+                224
+            ],
+            "id": "6c136d7a-1660-4261-a210-f8958d6dc865",
+            "name": "Respond to Webhook"
+        },
+        {
+            "parameters": {
+                "rules": {
+                    "values": [
+                        {
+                            "conditions": {
+                                "options": {
+                                    "caseSensitive": true,
+                                    "leftValue": "",
+                                    "typeValidation": "strict",
+                                    "version": 2
+                                },
+                                "conditions": [
+                                    {
+                                        "id": "f469bc80-5228-4b85-b043-359a7fc04d22",
+                                        "leftValue": "={{ $json.body.moneda }}",
+                                        "rightValue": "ethereum",
+                                        "operator": {
+                                            "type": "string",
+                                            "operation": "equals",
+                                            "name": "filter.operator.equals"
+                                        }
+                                    }
+                                ],
+                                "combinator": "and"
+                            },
+                            "renameOutput": true,
+                            "outputKey": "ETHEREUM"
+                        },
+                        {
+                            "conditions": {
+                                "options": {
+                                    "caseSensitive": true,
+                                    "leftValue": "",
+                                    "typeValidation": "strict",
+                                    "version": 2
+                                },
+                                "conditions": [
+                                    {
+                                        "id": "b645bd69-544c-43fc-9b6f-76fb949edc5d",
+                                        "leftValue": "={{ $json.body.moneda }}",
+                                        "rightValue": "bitcoin",
+                                        "operator": {
+                                            "type": "string",
+                                            "operation": "equals",
+                                            "name": "filter.operator.equals"
+                                        }
+                                    }
+                                ],
+                                "combinator": "and"
+                            },
+                            "renameOutput": true,
+                            "outputKey": "BITCOIN"
+                        },
+                        {
+                            "conditions": {
+                                "options": {
+                                    "caseSensitive": true,
+                                    "leftValue": "",
+                                    "typeValidation": "strict",
+                                    "version": 2
+                                },
+                                "conditions": [
+                                    {
+                                        "leftValue": "={{ $json.body.moneda }}",
+                                        "rightValue": "solana",
+                                        "operator": {
+                                            "type": "string",
+                                            "operation": "equals"
+                                        }
+                                    }
+                                ],
+                                "combinator": "and"
+                            },
+                            "renameOutput": true,
+                            "outputKey": "SOLANA"
+                        }
+                    ]
+                },
+                "options": {}
+            },
+            "type": "n8n-nodes-base.switch",
+            "typeVersion": 3.2,
+            "position": [
+                -288,
+                208
+            ],
+            "id": "25d87e37-d807-49ce-8315-c3b701bdb59a",
+            "name": "Switch"
+        }
+    ],
+    "pinData": {
+        "Webhook": [
+            {
+                "json": {
+                    "headers": {
+                        "host": "n8n.avson.eu",
+                        "x-real-ip": "83.50.166.38",
+                        "x-forwarded-for": "83.50.166.38, 83.50.166.38",
+                        "x-forwarded-proto": "https",
+                        "connection": "close",
+                        "content-length": "19",
+                        "cf-ray": "963d752e8b586660-MAD",
+                        "accept": "*/*",
+                        "priority": "u=1, i",
+                        "accept-encoding": "gzip, br",
+                        "cdn-loop": "cloudflare; loops=1",
+                        "accept-language": "es-ES,es;q=0.9,en;q=0.8,ca;q=0.7",
+                        "referer": "https://df850916-07f4-452d-a8a5-d7bca35182bf.lovableproject.com/",
+                        "cf-visitor": "{\"scheme\":\"https\"}",
+                        "sec-fetch-dest": "empty",
+                        "sec-fetch-mode": "cors",
+                        "cf-connecting-ip": "83.50.166.38",
+                        "cf-ipcountry": "ES",
+                        "sec-fetch-site": "cross-site",
+                        "origin": "https://df850916-07f4-452d-a8a5-d7bca35182bf.lovableproject.com",
+                        "sec-ch-ua-platform": "\"Windows\"",
+                        "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36",
+                        "sec-ch-ua": "\"Not)A;Brand\";v=\"8\", \"Chromium\";v=\"138\", \"Google Chrome\";v=\"138\"",
+                        "content-type": "application/json",
+                        "sec-ch-ua-mobile": "?0"
+                    },
+                    "params": {},
+                    "query": {},
+                    "body": {
+                        "moneda": "solana"
+                    },
+                    "webhookUrl": "https://n8n.avson.eu/webhook/45ec9f4b-c579-42f3-84db-cd4d9267b647",
+                    "executionMode": "production"
+                }
+            }
+        ]
+    },
+    "connections": {
+        "Noticias SOLANA": {
+            "main": [
+                [
+                    {
+                        "node": "Coingecko Solana",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Noticias BITCOIN": {
+            "main": [
+                [
+                    {
+                        "node": "Coingecko Bitocin",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Coingecko Bitocin": {
+            "main": [
+                [
+                    {
+                        "node": "Codigo BITCOIN",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Coingecko Solana": {
+            "main": [
+                [
+                    {
+                        "node": "Codigo SOLANA",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Coingecko Ethereum": {
+            "main": [
+                [
+                    {
+                        "node": "Codigo ETHEREUM",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Noticias ETHEREUM": {
+            "main": [
+                [
+                    {
+                        "node": "Coingecko Ethereum",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Webhook": {
+            "main": [
+                [
+                    {
+                        "node": "Switch",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Switch": {
+            "main": [
+                [
+                    {
+                        "node": "Noticias ETHEREUM",
+                        "type": "main",
+                        "index": 0
+                    }
+                ],
+                [
+                    {
+                        "node": "Noticias BITCOIN",
+                        "type": "main",
+                        "index": 0
+                    }
+                ],
+                [
+                    {
+                        "node": "Noticias SOLANA",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Codigo ETHEREUM": {
+            "main": [
+                [
+                    {
+                        "node": "Respond to Webhook",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Codigo BITCOIN": {
+            "main": [
+                [
+                    {
+                        "node": "Respond to Webhook",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Codigo SOLANA": {
+            "main": [
+                [
+                    {
+                        "node": "Respond to Webhook",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        }
+    },
+    "active": true,
+    "settings": {
+        "executionOrder": "v1"
+    },
+    "versionId": "1b6ad878-be36-4767-9ab0-2461aa0c46ef",
+    "meta": {
+        "instanceId": "401cd48fee9ca019b653123bfa8811b0aed8324f9072f2501c511be45881c373"
+    },
+    "id": "NCVYkIwGo9DNS5rn",
+    "tags": []
+}
