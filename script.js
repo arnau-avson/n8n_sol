@@ -1,7 +1,6 @@
 let chart = null;
 let analysisData = null;
 
-// Función para guardar predicción
 function savePrediction(coin, data) {
     const prediction = {
         timestamp: new Date().getTime(),
@@ -13,10 +12,8 @@ function savePrediction(coin, data) {
         analysis: data.analysis
     };
 
-    // Calcular precio objetivo
     prediction.targetPrice = prediction.initialPrice * (1 + prediction.predictedChange / 100);
     
-    // Guardar en localStorage
     let predictions = JSON.parse(localStorage.getItem('cryptoPredictions') || '[]');
     predictions.push(prediction);
     localStorage.setItem('cryptoPredictions', JSON.stringify(predictions));
@@ -24,7 +21,6 @@ function savePrediction(coin, data) {
     showNotification('Predicción guardada. Podrás verificar el resultado en 24 horas.');
 }
 
-// Función para verificar predicciones anteriores
 async function checkPastPredictions() {
     const predictions = JSON.parse(localStorage.getItem('cryptoPredictions') || '[]');
     const currentTime = new Date().getTime();
@@ -34,16 +30,13 @@ async function checkPastPredictions() {
     for (const prediction of predictions) {
         const hoursSincePrediction = (currentTime - prediction.timestamp) / (1000 * 60 * 60);
         
-        // Verificar predicciones que tienen entre 23 y 25 horas
         if (hoursSincePrediction >= 23 && hoursSincePrediction <= 25) {
             hasVerifiablePredictions = true;
             try {
-                // Obtener precio actual
                 const response = await fetch(`https://min-api.cryptocompare.com/data/price?fsym=${coinSymbols[prediction.coin]}&tsyms=USD`);
                 const data = await response.json();
                 const currentPrice = data.USD;
 
-                // Calcular precisión de la predicción
                 const actualChange = ((currentPrice - prediction.initialPrice) / prediction.initialPrice) * 100;
                 const predictionAccuracy = Math.min(100 - Math.abs(actualChange - prediction.predictedChange), 100);
 
@@ -66,12 +59,10 @@ async function checkPastPredictions() {
         displayPredictionResults(verifiedPredictions);
     }
 
-    // Limpiar predicciones antiguas (más de 25 horas)
     const updatedPredictions = predictions.filter(p => (currentTime - p.timestamp) / (1000 * 60 * 60) <= 25);
     localStorage.setItem('cryptoPredictions', JSON.stringify(updatedPredictions));
 }
 
-// Función para mostrar resultados de predicciones
 function displayPredictionResults(verifiedPredictions) {
     const resultsHTML = verifiedPredictions.map(p => `
         <div class="border-b border-gray-800 py-4">
@@ -91,7 +82,6 @@ function displayPredictionResults(verifiedPredictions) {
         </div>
     `).join('');
 
-    // Crear o actualizar el panel de resultados
     let resultsPanel = document.getElementById('predictionsResults');
     if (!resultsPanel) {
         resultsPanel = document.createElement('div');
@@ -109,7 +99,6 @@ function displayPredictionResults(verifiedPredictions) {
     `;
 }
 
-// Función para mostrar notificaciones
 function showNotification(message) {
     const notification = document.createElement('div');
     notification.className = 'fixed bottom-4 right-4 bg-gray-900 border border-gray-800 text-gray-300 px-4 py-2 rounded-lg text-sm';
@@ -121,7 +110,6 @@ function showNotification(message) {
     }, 3000);
 }
 
-// Función para mostrar el histórico de predicciones
 function showPredictionHistory() {
     const predictions = JSON.parse(localStorage.getItem('cryptoPredictions') || '[]');
     if (predictions.length === 0) {
@@ -129,10 +117,8 @@ function showPredictionHistory() {
         return;
     }
 
-    // Ordenar predicciones por timestamp, más recientes primero
     predictions.sort((a, b) => b.timestamp - a.timestamp);
 
-    // Crear modal para el histórico
     const modal = document.createElement('div');
     modal.className = 'fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50';
     modal.innerHTML = `
@@ -175,32 +161,52 @@ function showPredictionHistory() {
     document.body.appendChild(modal);
 }
 
-// Función para reproducir una predicción específica
 async function replayPrediction(index) {
     const predictions = JSON.parse(localStorage.getItem('cryptoPredictions') || '[]');
     const prediction = predictions[index];
     if (!prediction) return;
 
-    // Recrear los datos necesarios para el gráfico
-    const data = {
-        currentPrice: prediction.initialPrice.toString(),
-        projectedMovement: prediction.predictedChange.toString(),
-        signal: prediction.signal,
-        sentimentScore: prediction.sentiment.toString(),
-        analysis: prediction.analysis
-    };
-
-    // Mostrar los resultados y crear el gráfico
-    displayResults(data, prediction.coin);
-    createChart(prediction.coin, data);
-    
-    // Cerrar el modal de histórico
+    // Cerrar el modal del historial antes de mostrar el gráfico
     document.querySelector('.fixed.inset-0').remove();
-    
-    showNotification('Mostrando predicción del ' + new Date(prediction.timestamp).toLocaleString());
+
+    // Obtener el precio actual para mostrar la evolución
+    try {
+        const response = await fetch(`https://min-api.cryptocompare.com/data/price?fsym=${coinSymbols[prediction.coin]}&tsyms=USD`);
+        const currentData = await response.json();
+        const currentPrice = currentData.USD;
+        
+        // Calcular el cambio real desde la predicción
+        const actualChange = ((currentPrice - prediction.initialPrice) / prediction.initialPrice) * 100;
+
+        const data = {
+            currentPrice: prediction.initialPrice.toString(),
+            projectedMovement: prediction.predictedChange.toString(),
+            signal: prediction.signal,
+            sentimentScore: prediction.sentiment.toString(),
+            analysis: prediction.analysis,
+            predictionTimestamp: prediction.timestamp,
+            actualPrice: currentPrice,
+            actualChange: actualChange,
+            movement24h: actualChange // Añadimos esto para que se muestre en los resultados
+        };
+
+        // Asegurarnos de que el panel de resultados está visible
+        const resultsPanel = document.getElementById('resultsPanel');
+        if (resultsPanel) {
+            resultsPanel.classList.remove('hidden');
+        }
+
+        // Mostrar los resultados y crear el gráfico
+        displayResults(data, prediction.coin);
+        await createReplayChart(prediction.coin, data);
+
+        showNotification('Mostrando predicción del ' + new Date(prediction.timestamp).toLocaleString());
+    } catch (error) {
+        console.error('Error obteniendo precio actual:', error);
+        showError('Error al obtener el precio actual');
+    }
 }
 
-// Función para eliminar una predicción específica
 function deletePrediction(index) {
     if (!confirm('¿Estás seguro de que quieres eliminar esta predicción?')) return;
     
@@ -208,13 +214,11 @@ function deletePrediction(index) {
     predictions.splice(index, 1);
     localStorage.setItem('cryptoPredictions', JSON.stringify(predictions));
     
-    // Actualizar la vista
     document.querySelector('.fixed.inset-0').remove();
     showPredictionHistory();
     showNotification('Predicción eliminada');
 }
 
-// Función para limpiar todas las predicciones
 function clearAllPredictions() {
     if (!confirm('¿Estás seguro de que quieres eliminar todo el historial de predicciones?')) return;
     
@@ -223,12 +227,9 @@ function clearAllPredictions() {
     showNotification('Historial de predicciones eliminado');
 }
 
-// Event listener para el botón de histórico
 document.getElementById('historyBtn').addEventListener('click', showPredictionHistory);
 
-// Verificar predicciones cada 5 minutos
 setInterval(checkPastPredictions, 5 * 60 * 1000);
-// Verificar al cargar la página
 checkPastPredictions();
 
 const coinSymbols = {
@@ -246,7 +247,6 @@ const coinNames = {
 let socket = null;
 let lastCandle = null;
 
-// Configuración base del gráfico
 const chartOptions = {
     chart: {
         type: 'candlestick',
@@ -385,7 +385,6 @@ const chartOptions = {
     }
 };
 
-// Función para obtener datos históricos de CryptoCompare
 async function getHistoricalData(symbol, limit = 100) {
     const response = await fetch(`https://min-api.cryptocompare.com/data/v2/histominute?fsym=${symbol}&tsym=USD&limit=${limit * 15}&aggregate=15`);
     const data = await response.json();
@@ -395,7 +394,6 @@ async function getHistoricalData(symbol, limit = 100) {
     }));
 }
 
-// Función para conectar al WebSocket
 function connectWebSocket(symbol) {
     if (socket) {
         socket.close();
@@ -413,7 +411,7 @@ function connectWebSocket(symbol) {
 
     socket.onmessage = function (event) {
         const data = JSON.parse(event.data);
-        if (data.TYPE === "2" && chart) { // 2 = trade data
+        if (data.TYPE === "2" && chart) {
             updateChartData(data);
         }
     };
@@ -423,23 +421,22 @@ function connectWebSocket(symbol) {
     };
 }
 
-// Función para actualizar datos en tiempo real
 function updateChartData(data) {
     const timestamp = new Date().getTime();
-    const price = parseFloat(data.P); // Precio actual
+    const price = parseFloat(data.P);
 
-    if (!lastCandle || timestamp - lastCandle.x >= 900000) { // Nueva vela cada 15 minutos (15 * 60 * 1000 ms)
+    if (!lastCandle || timestamp - lastCandle.x >= 900000) {
         lastCandle = {
-            x: timestamp - (timestamp % 900000), // Redondear a 15 minutos
-            y: [price, price, price, price] // [open, high, low, close]
+            x: timestamp - (timestamp % 900000),
+            y: [price, price, price, price]
         };
         chart.appendData([{
             data: [lastCandle]
         }]);
     } else {
-        lastCandle.y[1] = Math.max(lastCandle.y[1], price); // Actualizar high
-        lastCandle.y[2] = Math.min(lastCandle.y[2], price); // Actualizar low
-        lastCandle.y[3] = price; // Actualizar close
+        lastCandle.y[1] = Math.max(lastCandle.y[1], price);
+        lastCandle.y[2] = Math.min(lastCandle.y[2], price);
+        lastCandle.y[3] = price;
 
         chart.updateSeries([{
             data: chart.w.config.series[0].data.map(candle =>
@@ -496,6 +493,49 @@ document.getElementById('analyzeBtn').addEventListener('click', async function (
 });
 
 function displayResults(data, coin) {
+    // Primero, asegurarnos de que el panel de resultados existe
+    let resultsPanel = document.getElementById('resultsPanel');
+    if (!resultsPanel) {
+        resultsPanel = document.createElement('div');
+        resultsPanel.id = 'resultsPanel';
+        resultsPanel.className = 'bg-black border border-gray-800 rounded-lg p-6';
+        resultsPanel.innerHTML = `
+            <div class="mb-6">
+                <div class="flex items-center mb-4">
+                    <h2 class="text-white text-xl font-light" id="tradingSignal"></h2>
+                    <span id="confidenceBadge" class="ml-3 px-3 py-1 rounded-full text-sm font-medium"></span>
+                </div>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                        <p class="text-gray-400 text-sm">Precio Actual</p>
+                        <p class="text-white text-2xl font-medium mt-1" id="currentPrice"></p>
+                        <p id="priceChange" class="text-sm"></p>
+                    </div>
+                    <div>
+                        <p class="text-gray-400 text-sm">Predicción 24h</p>
+                        <p class="text-white text-lg mt-1" id="prediction"></p>
+                    </div>
+                </div>
+            </div>
+            <div id="tradingChart"></div>
+            <div class="mt-6">
+                <h3 class="text-white text-lg mb-2">Análisis Detallado</h3>
+                <p id="detailedAnalysis" class="text-gray-400"></p>
+            </div>
+            <div class="mt-4 grid grid-cols-2 gap-4">
+                <div>
+                    <p class="text-gray-400 text-sm">Sentimiento del Mercado</p>
+                    <p id="sentimentScore" class="font-bold"></p>
+                </div>
+                <div>
+                    <p class="text-gray-400 text-sm">Noticias Recientes</p>
+                    <p id="newsCount" class="text-white"></p>
+                </div>
+            </div>
+        `;
+        document.body.appendChild(resultsPanel);
+    }
+
     const signal = data.signal || 'No disponible';
     const currentPrice = `$${data.currentPrice || '0.00'}`;
     const movement24h = parseFloat(data.movement24h || 0);
@@ -504,42 +544,159 @@ function displayResults(data, coin) {
     const recentNews = data.recentNews || 0;
     const analysis = data.analysis || 'Análisis no disponible';
 
-    document.getElementById('tradingSignal').textContent = signal;
-    document.getElementById('currentPrice').textContent = currentPrice;
+    // Ahora actualizamos los elementos, verificando que existen
+    const elements = {
+        tradingSignal: document.getElementById('tradingSignal'),
+        currentPrice: document.getElementById('currentPrice'),
+        priceChange: document.getElementById('priceChange'),
+        prediction: document.getElementById('prediction'),
+        detailedAnalysis: document.getElementById('detailedAnalysis'),
+        sentimentScore: document.getElementById('sentimentScore'),
+        newsCount: document.getElementById('newsCount'),
+        confidenceBadge: document.getElementById('confidenceBadge')
+    };
 
-    const priceChangeElement = document.getElementById('priceChange');
-    const changeText = `${movement24h > 0 ? '+' : ''}${movement24h}% (24h)`;
-    priceChangeElement.textContent = changeText;
-    priceChangeElement.className = movement24h >= 0 ? 'text-green-400 text-sm' : 'text-red-400 text-sm';
+    if (elements.tradingSignal) elements.tradingSignal.textContent = signal;
+    if (elements.currentPrice) elements.currentPrice.textContent = currentPrice;
 
-    document.getElementById('prediction').textContent = projectedMovement;
-    document.getElementById('detailedAnalysis').textContent = analysis;
-
-    const sentimentElement = document.getElementById('sentimentScore');
-    sentimentElement.textContent = sentimentScore;
-    if (sentimentScore > 0) {
-        sentimentElement.className = 'font-bold text-green-400';
-    } else if (sentimentScore < 0) {
-        sentimentElement.className = 'font-bold text-red-400';
-    } else {
-        sentimentElement.className = 'font-bold text-yellow-400';
+    if (elements.priceChange) {
+        const changeText = `${movement24h > 0 ? '+' : ''}${movement24h}% (24h)`;
+        elements.priceChange.textContent = changeText;
+        elements.priceChange.className = movement24h >= 0 ? 'text-green-400 text-sm' : 'text-red-400 text-sm';
     }
 
-    document.getElementById('newsCount').textContent = recentNews;
+    if (elements.prediction) elements.prediction.textContent = projectedMovement;
+    if (elements.detailedAnalysis) elements.detailedAnalysis.textContent = analysis;
 
-    const confidenceBadge = document.getElementById('confidenceBadge');
-    if (signal.includes('Alta')) {
-        confidenceBadge.textContent = 'Alta Confianza';
-        confidenceBadge.className = 'ml-3 px-3 py-1 rounded-full text-sm font-medium bg-green-600 text-white';
-    } else if (signal.includes('Media')) {
-        confidenceBadge.textContent = 'Media Confianza';
-        confidenceBadge.className = 'ml-3 px-3 py-1 rounded-full text-sm font-medium bg-yellow-600 text-white';
-    } else {
-        confidenceBadge.textContent = 'Baja Confianza';
-        confidenceBadge.className = 'ml-3 px-3 py-1 rounded-full text-sm font-medium bg-gray-600 text-white';
+    if (elements.sentimentScore) {
+        elements.sentimentScore.textContent = sentimentScore;
+        if (sentimentScore > 0) {
+            elements.sentimentScore.className = 'font-bold text-green-400';
+        } else if (sentimentScore < 0) {
+            elements.sentimentScore.className = 'font-bold text-red-400';
+        } else {
+            elements.sentimentScore.className = 'font-bold text-yellow-400';
+        }
     }
 
-    document.getElementById('resultsPanel').classList.remove('hidden');
+    if (elements.newsCount) elements.newsCount.textContent = recentNews;
+
+    if (elements.confidenceBadge) {
+        if (signal.includes('Alta')) {
+            elements.confidenceBadge.textContent = 'Alta Confianza';
+            elements.confidenceBadge.className = 'ml-3 px-3 py-1 rounded-full text-sm font-medium bg-green-600 text-white';
+        } else if (signal.includes('Media')) {
+            elements.confidenceBadge.textContent = 'Media Confianza';
+            elements.confidenceBadge.className = 'ml-3 px-3 py-1 rounded-full text-sm font-medium bg-yellow-600 text-white';
+        } else {
+            elements.confidenceBadge.textContent = 'Baja Confianza';
+            elements.confidenceBadge.className = 'ml-3 px-3 py-1 rounded-full text-sm font-medium bg-gray-600 text-white';
+        }
+    }
+
+    resultsPanel.classList.remove('hidden');
+}
+
+async function createReplayChart(coin, data) {
+    if (chart) {
+        chart.destroy();
+    }
+
+    const symbol = coinSymbols[coin];
+    const predictionTime = new Date(data.predictionTimestamp);
+    const currentTime = new Date();
+    const initialPrice = parseFloat(data.currentPrice);
+    const currentPrice = parseFloat(data.actualPrice);
+    const projectedChange = parseFloat(data.projectedMovement?.match(/([-+]?\d+\.?\d*)/)?.[1] || 0);
+    const projectedPrice = initialPrice * (1 + projectedChange / 100);
+    const actualChange = parseFloat(data.actualChange);
+
+    try {
+        // Obtener datos históricos desde el momento de la predicción hasta ahora
+        const minutesSincePrediction = Math.floor((currentTime - predictionTime) / (1000 * 60));
+        const limit = Math.ceil(minutesSincePrediction / 15) + 20; // Añadimos 20 velas adicionales para contexto
+
+        const historicalData = await getHistoricalData(symbol, limit);
+
+        // Encontrar el índice de la vela de predicción
+        const predictionIndex = historicalData.findIndex(candle => 
+            new Date(candle.x) >= predictionTime
+        );
+
+        if (predictionIndex !== -1) {
+            // Añadir anotaciones y líneas para la predicción
+            const annotations = {
+                xaxis: [{
+                    x: predictionTime.getTime(),
+                    borderColor: '#404040',
+                    label: {
+                        text: 'Predicción',
+                        style: {
+                            background: '#000000',
+                            color: '#666666',
+                            fontSize: '11px'
+                        }
+                    }
+                }],
+                yaxis: [
+                    {
+                        y: projectedPrice,
+                        borderColor: projectedChange >= 0 ? '#22c55e' : '#f97316',
+                        strokeDashArray: 5,
+                        label: {
+                            text: `Predicción: $${projectedPrice.toFixed(2)} (${projectedChange >= 0 ? '+' : ''}${projectedChange.toFixed(1)}%)`,
+                            style: {
+                                background: '#1f2937',
+                                color: '#ffffff'
+                            }
+                        }
+                    },
+                    {
+                        y: currentPrice,
+                        borderColor: actualChange >= 0 ? '#22c55e' : '#f97316',
+                        strokeDashArray: 0,
+                        label: {
+                            text: `Actual: $${currentPrice.toFixed(2)} (${actualChange >= 0 ? '+' : ''}${actualChange.toFixed(1)}%)`,
+                            style: {
+                                background: '#1f2937',
+                                color: '#ffffff'
+                            }
+                        }
+                    }
+                ]
+            };
+
+            // Crear el gráfico con las anotaciones
+            // Asegurarnos de que el contenedor del gráfico existe
+            let chartContainer = document.querySelector("#tradingChart");
+            if (!chartContainer) {
+                // Si no existe, lo creamos
+                chartContainer = document.createElement('div');
+                chartContainer.id = 'tradingChart';
+                document.getElementById('resultsPanel').appendChild(chartContainer);
+            }
+
+            const options = {
+                ...chartOptions,
+                series: [{
+                    name: `${coinNames[coin]} Precio`,
+                    data: historicalData
+                }],
+                annotations: annotations
+            };
+
+            chart = new ApexCharts(chartContainer, options);
+            await chart.render();
+
+            // Conectar WebSocket para datos en tiempo real
+            connectWebSocket(symbol);
+        }
+    } catch (error) {
+        console.error('Error creating replay chart:', error);
+        showError('Error al cargar el gráfico histórico');
+    }
+
+    updateTimeInfo(predictionTime, currentTime, actualChange, true);
 }
 
 async function createChart(coin, data) {
@@ -618,21 +775,40 @@ async function createChart(coin, data) {
     updateTimeInfo(currentTime, new Date(currentTime.getTime() + 86400000), projectedChange);
 }
 
-function updateTimeInfo(analysisTime, projectionTime, change) {
+function updateTimeInfo(analysisTime, currentOrProjectionTime, change, isReplay = false) {
     const timeInfo = document.createElement('div');
     timeInfo.className = 'mt-2 text-sm text-gray-400 bg-gray-800 p-3 rounded-lg';
-    timeInfo.innerHTML = `
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-2">
-                        <div>
-                            <span class="text-red-400">●</span> Análisis: ${analysisTime.toLocaleString('es-ES')}
-                        </div>
-                        <div>
-                            <span class="text-${change >= 0 ? 'green' : 'orange'}-400">●</span> 
-                            Proyección 24h: ${projectionTime.toLocaleString('es-ES')} 
-                            (${change >= 0 ? '+' : ''}${change.toFixed(1)}%)
-                        </div>
-                    </div>
-                `;
+    
+    if (isReplay) {
+        // Para predicciones reproducidas del historial
+        const hoursSincePrediction = Math.round((currentOrProjectionTime - analysisTime) / (1000 * 60 * 60));
+        timeInfo.innerHTML = `
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-2">
+                <div>
+                    <span class="text-red-400">●</span> Predicción realizada: ${analysisTime.toLocaleString('es-ES')}
+                </div>
+                <div>
+                    <span class="text-${change >= 0 ? 'green' : 'orange'}-400">●</span> 
+                    Resultado actual (${hoursSincePrediction}h después): ${currentOrProjectionTime.toLocaleString('es-ES')} 
+                    (${change >= 0 ? '+' : ''}${change.toFixed(1)}%)
+                </div>
+            </div>
+        `;
+    } else {
+        // Para predicciones nuevas
+        timeInfo.innerHTML = `
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-2">
+                <div>
+                    <span class="text-red-400">●</span> Análisis: ${analysisTime.toLocaleString('es-ES')}
+                </div>
+                <div>
+                    <span class="text-${change >= 0 ? 'green' : 'orange'}-400">●</span> 
+                    Proyección 24h: ${currentOrProjectionTime.toLocaleString('es-ES')} 
+                    (${change >= 0 ? '+' : ''}${change.toFixed(1)}%)
+                </div>
+            </div>
+        `;
+    }
 
     const existingInfo = document.querySelector('.time-info');
     if (existingInfo) {
@@ -640,7 +816,12 @@ function updateTimeInfo(analysisTime, projectionTime, change) {
     }
 
     timeInfo.classList.add('time-info');
-    document.getElementById('tradingview_chart').parentNode.appendChild(timeInfo);
+    const chartContainer = document.getElementById('tradingChart');
+    if (chartContainer) {
+        chartContainer.parentNode.appendChild(timeInfo);
+    } else {
+        console.error('No se encontró el contenedor del gráfico');
+    }
 }
 
 function showError(message) {
