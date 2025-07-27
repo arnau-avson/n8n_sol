@@ -117,7 +117,6 @@ function showPredictionHistory() {
         return;
     }
 
-    // Ordenamos las predicciones y añadimos un ID original
     predictions = predictions
         .map((p, index) => ({ ...p, originalIndex: index }))
         .sort((a, b) => b.timestamp - a.timestamp);
@@ -209,7 +208,6 @@ function deletePrediction(originalIndex) {
     if (!confirm('¿Estás seguro de que quieres eliminar esta predicción?')) return;
     
     let predictions = JSON.parse(localStorage.getItem('cryptoPredictions') || '[]');
-    // Encontrar y eliminar la predicción usando el índice original
     predictions = predictions.filter((_, index) => index !== originalIndex);
     localStorage.setItem('cryptoPredictions', JSON.stringify(predictions));
     
@@ -451,12 +449,10 @@ document.getElementById('analyzeBtn').addEventListener('click', async function (
     const btnText = document.getElementById('btnText');
     const btnSpinner = document.getElementById('btnSpinner');
 
-    // Show loading state
     btn.disabled = true;
     btnText.textContent = 'Analizando...';
     btnSpinner.classList.remove('hidden');
 
-    // Hide previous results
     document.getElementById('resultsPanel').classList.add('hidden');
     document.getElementById('errorPanel').classList.add('hidden');
 
