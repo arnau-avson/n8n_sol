@@ -111,13 +111,16 @@ function showNotification(message) {
 }
 
 function showPredictionHistory() {
-    const predictions = JSON.parse(localStorage.getItem('cryptoPredictions') || '[]');
+    let predictions = JSON.parse(localStorage.getItem('cryptoPredictions') || '[]');
     if (predictions.length === 0) {
         showNotification('No hay predicciones guardadas');
         return;
     }
 
-    predictions.sort((a, b) => b.timestamp - a.timestamp);
+    // Ordenamos las predicciones y añadimos un ID original
+    predictions = predictions
+        .map((p, index) => ({ ...p, originalIndex: index }))
+        .sort((a, b) => b.timestamp - a.timestamp);
 
     const modal = document.createElement('div');
     modal.className = 'fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50';
@@ -144,10 +147,10 @@ function showPredictionHistory() {
                                 </p>
                             </div>
                             <div class="flex gap-2">
-                                <button onclick="replayPrediction(${index})" class="text-gray-500 hover:text-gray-300 text-sm border border-gray-800 rounded px-3 py-1">
+                                <button onclick="replayPrediction(${p.originalIndex})" class="text-gray-500 hover:text-gray-300 text-sm border border-gray-800 rounded px-3 py-1">
                                     Ver Gráfico
                                 </button>
-                                <button onclick="deletePrediction(${index})" class="text-red-500 hover:text-red-400 text-sm border border-red-900 rounded px-3 py-1">
+                                <button onclick="deletePrediction(${p.originalIndex})" class="text-red-500 hover:text-red-400 text-sm border border-red-900 rounded px-3 py-1">
                                     Eliminar
                                 </button>
                             </div>
@@ -166,16 +169,13 @@ async function replayPrediction(index) {
     const prediction = predictions[index];
     if (!prediction) return;
 
-    // Cerrar el modal del historial antes de mostrar el gráfico
     document.querySelector('.fixed.inset-0').remove();
 
-    // Obtener el precio actual para mostrar la evolución
     try {
         const response = await fetch(`https://min-api.cryptocompare.com/data/price?fsym=${coinSymbols[prediction.coin]}&tsyms=USD`);
         const currentData = await response.json();
         const currentPrice = currentData.USD;
         
-        // Calcular el cambio real desde la predicción
         const actualChange = ((currentPrice - prediction.initialPrice) / prediction.initialPrice) * 100;
 
         const data = {
@@ -187,16 +187,14 @@ async function replayPrediction(index) {
             predictionTimestamp: prediction.timestamp,
             actualPrice: currentPrice,
             actualChange: actualChange,
-            movement24h: actualChange // Añadimos esto para que se muestre en los resultados
+            movement24h: actualChange
         };
 
-        // Asegurarnos de que el panel de resultados está visible
         const resultsPanel = document.getElementById('resultsPanel');
         if (resultsPanel) {
             resultsPanel.classList.remove('hidden');
         }
 
-        // Mostrar los resultados y crear el gráfico
         displayResults(data, prediction.coin);
         await createReplayChart(prediction.coin, data);
 
@@ -207,11 +205,12 @@ async function replayPrediction(index) {
     }
 }
 
-function deletePrediction(index) {
+function deletePrediction(originalIndex) {
     if (!confirm('¿Estás seguro de que quieres eliminar esta predicción?')) return;
     
     let predictions = JSON.parse(localStorage.getItem('cryptoPredictions') || '[]');
-    predictions.splice(index, 1);
+    // Encontrar y eliminar la predicción usando el índice original
+    predictions = predictions.filter((_, index) => index !== originalIndex);
     localStorage.setItem('cryptoPredictions', JSON.stringify(predictions));
     
     document.querySelector('.fixed.inset-0').remove();
@@ -493,7 +492,6 @@ document.getElementById('analyzeBtn').addEventListener('click', async function (
 });
 
 function displayResults(data, coin) {
-    // Primero, asegurarnos de que el panel de resultados existe
     let resultsPanel = document.getElementById('resultsPanel');
     if (!resultsPanel) {
         resultsPanel = document.createElement('div');
@@ -544,7 +542,6 @@ function displayResults(data, coin) {
     const recentNews = data.recentNews || 0;
     const analysis = data.analysis || 'Análisis no disponible';
 
-    // Ahora actualizamos los elementos, verificando que existen
     const elements = {
         tradingSignal: document.getElementById('tradingSignal'),
         currentPrice: document.getElementById('currentPrice'),
@@ -612,19 +609,16 @@ async function createReplayChart(coin, data) {
     const actualChange = parseFloat(data.actualChange);
 
     try {
-        // Obtener datos históricos desde el momento de la predicción hasta ahora
         const minutesSincePrediction = Math.floor((currentTime - predictionTime) / (1000 * 60));
-        const limit = Math.ceil(minutesSincePrediction / 15) + 20; // Añadimos 20 velas adicionales para contexto
+        const limit = Math.ceil(minutesSincePrediction / 15) + 20;
 
         const historicalData = await getHistoricalData(symbol, limit);
 
-        // Encontrar el índice de la vela de predicción
         const predictionIndex = historicalData.findIndex(candle => 
             new Date(candle.x) >= predictionTime
         );
 
         if (predictionIndex !== -1) {
-            // Añadir anotaciones y líneas para la predicción
             const annotations = {
                 xaxis: [{
                     x: predictionTime.getTime(),
@@ -666,11 +660,8 @@ async function createReplayChart(coin, data) {
                 ]
             };
 
-            // Crear el gráfico con las anotaciones
-            // Asegurarnos de que el contenedor del gráfico existe
             let chartContainer = document.querySelector("#tradingChart");
             if (!chartContainer) {
-                // Si no existe, lo creamos
                 chartContainer = document.createElement('div');
                 chartContainer.id = 'tradingChart';
                 document.getElementById('resultsPanel').appendChild(chartContainer);
@@ -688,7 +679,6 @@ async function createReplayChart(coin, data) {
             chart = new ApexCharts(chartContainer, options);
             await chart.render();
 
-            // Conectar WebSocket para datos en tiempo real
             connectWebSocket(symbol);
         }
     } catch (error) {
@@ -710,21 +700,17 @@ async function createChart(coin, data) {
     const projectedChange = parseFloat(data.projectedMovement?.match(/([-+]?\d+\.?\d*)/)?.[1] || 0);
     const projectedPrice = currentPrice * (1 + projectedChange / 100);
     
-    // Guardar la predicción cuando se crea el gráfico
     savePrediction(coin, data);
     const projectionTime = new Date(currentTime.getTime() + 24 * 60 * 60 * 1000);
 
     try {
-        // Obtener datos históricos
         const historicalData = await getHistoricalData(symbol);
 
-        // Configurar series de datos
         const series = [{
             name: `${coinNames[coin]} Precio`,
             data: historicalData
         }];
 
-        // Configurar anotaciones
         const annotations = {
             xaxis: [{
                 x: currentTime.getTime(),
@@ -755,7 +741,6 @@ async function createChart(coin, data) {
             }]
         };
 
-        // Crear el gráfico
         const options = {
             ...chartOptions,
             series: series,
@@ -765,7 +750,6 @@ async function createChart(coin, data) {
         chart = new ApexCharts(document.querySelector("#tradingChart"), options);
         await chart.render();
 
-        // Conectar WebSocket para datos en tiempo real
         connectWebSocket(symbol);
     } catch (error) {
         console.error('Error creating chart:', error);
@@ -780,7 +764,6 @@ function updateTimeInfo(analysisTime, currentOrProjectionTime, change, isReplay 
     timeInfo.className = 'mt-2 text-sm text-gray-400 bg-gray-800 p-3 rounded-lg';
     
     if (isReplay) {
-        // Para predicciones reproducidas del historial
         const hoursSincePrediction = Math.round((currentOrProjectionTime - analysisTime) / (1000 * 60 * 60));
         timeInfo.innerHTML = `
             <div class="grid grid-cols-1 md:grid-cols-2 gap-2">
@@ -795,7 +778,6 @@ function updateTimeInfo(analysisTime, currentOrProjectionTime, change, isReplay 
             </div>
         `;
     } else {
-        // Para predicciones nuevas
         timeInfo.innerHTML = `
             <div class="grid grid-cols-1 md:grid-cols-2 gap-2">
                 <div>
