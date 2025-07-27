@@ -482,7 +482,7 @@ document.getElementById('analyzeBtn').addEventListener('click', async function (
         showError('No se pudo conectar con el servidor de análisis. Verifica que el webhook esté activo.');
     } finally {
         btn.disabled = false;
-        btnText.textContent = '🎯 Analizar Criptomoneda';
+        btnText.textContent = 'Analizar Criptomoneda';
         btnSpinner.classList.add('hidden');
     }
 });
@@ -728,7 +728,7 @@ async function createChart(coin, data) {
                 borderColor: projectedChange >= 0 ? '#22c55e' : '#f97316',
                 strokeDashArray: 5,
                 label: {
-                    text: `Proyección: $${projectedPrice.toFixed(2)} (${projectedChange >= 0 ? '+' : ''}${projectedChange.toFixed(1)}%)`,
+                    text: `(${projectedChange >= 0 ? '+' : ''}${projectedChange.toFixed(1)}%)`,
                     style: {
                         background: '#1f2937',
                         color: '#ffffff'
