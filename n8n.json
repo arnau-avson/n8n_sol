@@ -1,114 +1,6 @@
 {
-    "name": "My workflow",
+    "name": "arbitraje-end",
     "nodes": [
-        {
-            "parameters": {
-                "url": "=https://newsapi.org/v2/everything?q=solana&language=en&sortBy=publishedAt&from={{new Date(Date.now() - 24*60*60*1000).toISOString().split('T')[0]}}&to={{new Date().toISOString().split('T')[0]}}&apiKey=426a4a4c21fb4364b3f4c8d3ec5b9369",
-                "options": {}
-            },
-            "type": "n8n-nodes-base.httpRequest",
-            "typeVersion": 4.2,
-            "position": [
-                0,
-                400
-            ],
-            "id": "315cba7a-e527-43dd-8b6c-d6e1aa5b7801",
-            "name": "Noticias SOLANA"
-        },
-        {
-            "parameters": {
-                "url": "=https://newsapi.org/v2/everything?q=bitcoin&language=en&sortBy=publishedAt&from={{new Date(Date.now() - 24*60*60*1000).toISOString().split('T')[0]}}&to={{new Date().toISOString().split('T')[0]}}&apiKey=426a4a4c21fb4364b3f4c8d3ec5b9369",
-                "options": {}
-            },
-            "type": "n8n-nodes-base.httpRequest",
-            "typeVersion": 4.2,
-            "position": [
-                0,
-                224
-            ],
-            "id": "08a4d256-ff44-4f12-ae91-9e4703711ea4",
-            "name": "Noticias BITCOIN"
-        },
-        {
-            "parameters": {
-                "jsCode": "// Obtener entradas de noticias y precios\nconst newsInput = $input.all().find(item => item.json.articles);\nconst response = newsInput?.json || {};\nconst articles = response.articles || [];\n\nconst pricesInput = $input.all().find(item => Array.isArray(item.json.prices));\nconst prices = pricesInput?.json?.prices || [];\n\nif (prices.length < 2) {\n    return [{ json: { error: 'No se encontraron precios suficientes para SOL' } }];\n}\n\n// Configuración\nconst asset = 'SOL';\nconst now = new Date();\nconst lookbackPeriod = 24 * 60 * 60 * 1000; // 24 horas\nconst windowStart = new Date(now.getTime() - lookbackPeriod);\n\n// Cálculo de precio y variación en 24h\nconst currentPrice = prices[prices.length - 1][1];\nconst price24hAgo = prices[0][1];\nconst priceMovement = currentPrice - price24hAgo;\nconst movementPercentage = (priceMovement / price24hAgo) * 100;\n\n// Palabras clave para análisis de sentimiento\nconst positiveWords = ['gain', 'rise', 'bull', 'profit', 'surge', 'growth', 'strong', 'up', 'bullish', 'rally', 'pump'];\nconst negativeWords = ['loss', 'fall', 'bear', 'drop', 'weak', 'down', 'decline', 'crash', 'bearish', 'dump'];\n\nlet score = 0;\nlet recentNewsCount = 0;\n\n// Evaluar sentimiento en noticias recientes relacionadas con SOL\narticles.forEach(article => {\n    const publishedDate = new Date(article.publishedAt);\n    const text = (article.title + ' ' + (article.description || '')).toLowerCase();\n\n    // Solo analizar si mencionan Solana o SOL\n    if (publishedDate > windowStart && (text.includes('solana') || text.includes(' sol '))) {\n        recentNewsCount++;\n        const cleanedText = text.replace(/[^a-z\\s]/g, '');\n\n        positiveWords.forEach(word => {\n            if (cleanedText.includes(word)) score += 1;\n        });\n        negativeWords.forEach(word => {\n            if (cleanedText.includes(word)) score -= 1;\n        });\n    }\n});\n\n// Lógica de decisión\nlet signal = 'Mantener posición';\nlet confidence = 'Baja';\n\nif (score > 2 && movementPercentage > 1) {\n    signal = `COMPRAR ${asset}`;\n    confidence = 'Alta';\n} else if (score > 0 && movementPercentage > 0) {\n    signal = `Considerar COMPRA de ${asset}`;\n    confidence = 'Media';\n} else if (score < -2 || movementPercentage < -3) {\n    signal = `EVITAR comprar ${asset}`;\n    confidence = 'Alta';\n}\n\n// Proyección basada en sentimiento y precio\nconst projectedChange = (score * 0.5) + (movementPercentage * 0.3);\n\n// Retorno final\nreturn [{\n    json: {\n        signal: `${signal} (Confianza: ${confidence})`,\n        analysis: `Precio actual: $${currentPrice.toFixed(2)} | Cambio 24h: ${movementPercentage.toFixed(2)}% | Noticias recientes de SOL: ${recentNewsCount} | Score: ${score}`,\n        projectedMovement: `Movimiento esperado próximas horas: ${projectedChange > 0 ? '+' : ''}${projectedChange.toFixed(2)}%`,\n        timestamp: now.toISOString(),\n        asset,\n        currentPrice: currentPrice.toFixed(2),\n        movement24h: movementPercentage.toFixed(2),\n        sentimentScore: score,\n        recentNews: recentNewsCount\n    }\n}];"
-            },
-            "type": "n8n-nodes-base.code",
-            "typeVersion": 2,
-            "position": [
-                400,
-                400
-            ],
-            "id": "151f8d58-f29d-4c0a-9d35-17c06cb92d47",
-            "name": "Codigo SOLANA"
-        },
-        {
-            "parameters": {
-                "jsCode": "// Obtener entradas de noticias y precios\nconst newsInput = $input.all().find(item => item.json.articles);\nconst response = newsInput?.json || {};\nconst articles = response.articles || [];\nconst pricesInput = $input.all().find(item => Array.isArray(item.json.prices));\nconst prices = pricesInput?.json?.prices || [];\n\nif (prices.length < 2) {\n    return [{ json: { error: 'No se encontraron precios suficientes para BTC' } }];\n}\n\n// Configuración\nconst asset = 'BTC';\nconst now = new Date();\nconst lookbackPeriod = 24 * 60 * 60 * 1000; // 24 horas\nconst windowStart = new Date(now.getTime() - lookbackPeriod);\n\n// Cálculo de precio y variación\nconst currentPrice = prices[prices.length - 1][1];\nconst price24hAgo = prices[0][1];\nconst priceMovement = currentPrice - price24hAgo;\nconst movementPercentage = (priceMovement / price24hAgo) * 100;\n\n// Palabras clave para análisis de sentimiento\nconst positiveWords = ['gain', 'rise', 'bull', 'profit', 'surge', 'growth', 'strong', 'up', 'bullish', 'rally', 'pump'];\nconst negativeWords = ['loss', 'fall', 'bear', 'drop', 'weak', 'down', 'decline', 'crash', 'bearish', 'dump'];\n\nlet score = 0;\nlet recentNewsCount = 0;\n\n// Evaluar sentimiento en noticias recientes relacionadas con BTC\narticles.forEach(article => {\n    const publishedDate = new Date(article.publishedAt);\n    const text = (article.title + ' ' + (article.description || '')).toLowerCase();\n    \n    // Solo analizar si mencionan Bitcoin o BTC\n    if (publishedDate > windowStart && (text.includes('bitcoin') || text.includes(' btc '))) {\n        recentNewsCount++;\n        const cleanedText = text.replace(/[^a-z\\s]/g, '');\n        \n        positiveWords.forEach(word => {\n            if (cleanedText.includes(word)) score += 1;\n        });\n        \n        negativeWords.forEach(word => {\n            if (cleanedText.includes(word)) score -= 1;\n        });\n    }\n});\n\n// Lógica de decisión\nlet signal = 'Mantener posición';\nlet confidence = 'Baja';\n\nif (score > 2 && movementPercentage > 1) {\n    signal = `COMPRAR ${asset}`;\n    confidence = 'Alta';\n} else if (score > 0 && movementPercentage > 0) {\n    signal = `Considerar COMPRA de ${asset}`;\n    confidence = 'Media';\n} else if (score < -2 || movementPercentage < -3) {\n    signal = `EVITAR comprar ${asset}`;\n    confidence = 'Alta';\n}\n\n// Proyección basada en sentimiento y precio\nconst projectedChange = (score * 0.5) + (movementPercentage * 0.3);\n\n// Retorno final\nreturn [{\n    json: {\n        signal: `${signal} (Confianza: ${confidence})`,\n        analysis: `Precio actual: $${currentPrice.toFixed(2)} | Cambio 24h: ${movementPercentage.toFixed(2)}% | Noticias recientes de BTC: ${recentNewsCount} | Score: ${score}`,\n        projectedMovement: `Movimiento esperado próximas horas: ${projectedChange > 0 ? '+' : ''}${projectedChange.toFixed(2)}%`,\n        timestamp: now.toISOString(),\n        asset,\n        currentPrice: currentPrice.toFixed(2),\n        movement24h: movementPercentage.toFixed(2),\n        sentimentScore: score,\n        recentNews: recentNewsCount\n    }\n}];"
-            },
-            "type": "n8n-nodes-base.code",
-            "typeVersion": 2,
-            "position": [
-                400,
-                224
-            ],
-            "id": "dfe400d5-53ce-40d9-bd6f-9d59be67f1de",
-            "name": "Codigo BITCOIN"
-        },
-        {
-            "parameters": {
-                "url": "https://api.coingecko.com/api/v3/coins/bitcoin/market_chart",
-                "sendQuery": true,
-                "queryParameters": {
-                    "parameters": [
-                        {
-                            "name": "vs_currency",
-                            "value": "usd"
-                        },
-                        {
-                            "name": "days",
-                            "value": "1"
-                        }
-                    ]
-                },
-                "options": {}
-            },
-            "type": "n8n-nodes-base.httpRequest",
-            "typeVersion": 4.2,
-            "position": [
-                208,
-                224
-            ],
-            "id": "c16a3469-0a14-48cd-a9f4-afe5b794aa30",
-            "name": "Coingecko Bitocin"
-        },
-        {
-            "parameters": {
-                "url": "https://api.coingecko.com/api/v3/coins/solana/market_chart",
-                "sendQuery": true,
-                "queryParameters": {
-                    "parameters": [
-                        {
-                            "name": "vs_currency",
-                            "value": "usd"
-                        },
-                        {
-                            "name": "days",
-                            "value": "1"
-                        }
-                    ]
-                },
-                "options": {}
-            },
-            "type": "n8n-nodes-base.httpRequest",
-            "typeVersion": 4.2,
-            "position": [
-                208,
-                400
-            ],
-            "id": "6d67438b-0ddc-402b-a7c4-5367cf592dbd",
-            "name": "Coingecko Solana"
-        },
         {
             "parameters": {
                 "url": "https://api.coingecko.com/api/v3/coins/ethereum/market_chart",
@@ -121,7 +13,7 @@
                         },
                         {
                             "name": "days",
-                            "value": "1"
+                            "value": "3"
                         }
                     ]
                 },
@@ -130,10 +22,10 @@
             "type": "n8n-nodes-base.httpRequest",
             "typeVersion": 4.2,
             "position": [
-                208,
-                0
+                160,
+                -208
             ],
-            "id": "bbc24e97-512a-4cf1-9a79-fc1007db821a",
+            "id": "eb380e22-a564-44c0-8af4-e26782d8b7b1",
             "name": "Coingecko Ethereum"
         },
         {
@@ -144,23 +36,23 @@
             "type": "n8n-nodes-base.httpRequest",
             "typeVersion": 4.2,
             "position": [
-                0,
-                0
+                -80,
+                -240
             ],
-            "id": "78af7bf8-b3d0-402c-be86-a247f3e02db8",
+            "id": "d62d4685-aab1-40b1-baaf-b68b98f58a83",
             "name": "Noticias ETHEREUM"
         },
         {
             "parameters": {
-                "jsCode": "// Obtener entradas de noticias y precios\nconst newsInput = $input.all().find(item => item.json.articles);\nconst response = newsInput?.json || {};\nconst articles = response.articles || [];\nconst pricesInput = $input.all().find(item => Array.isArray(item.json.prices));\nconst prices = pricesInput?.json?.prices || [];\n\nif (prices.length < 2) {\n    return [{ json: { error: 'No se encontraron precios suficientes para ETH' } }];\n}\n\n// Configuración\nconst asset = 'ETH';\nconst now = new Date();\nconst lookbackPeriod = 24 * 60 * 60 * 1000; // 24 horas\nconst windowStart = new Date(now.getTime() - lookbackPeriod);\n\n// Cálculo de precio y variación en 24h\nconst currentPrice = prices[prices.length - 1][1];\nconst price24hAgo = prices[0][1];\nconst priceMovement = currentPrice - price24hAgo;\nconst movementPercentage = (priceMovement / price24hAgo) * 100;\n\n// Palabras clave para análisis de sentimiento\nconst positiveWords = ['gain', 'rise', 'bull', 'profit', 'surge', 'growth', 'strong', 'up', 'bullish', 'rally', 'pump'];\nconst negativeWords = ['loss', 'fall', 'bear', 'drop', 'weak', 'down', 'decline', 'crash', 'bearish', 'dump'];\n\nlet score = 0;\nlet recentNewsCount = 0;\n\n// Evaluar sentimiento en noticias recientes relacionadas con ETH\narticles.forEach(article => {\n    const publishedDate = new Date(article.publishedAt);\n    const text = (article.title + ' ' + (article.description || '')).toLowerCase();\n    \n    // Solo analizar si mencionan Ethereum o ETH\n    if (publishedDate > windowStart && (text.includes('ethereum') || text.includes(' eth '))) {\n        recentNewsCount++;\n        const cleanedText = text.replace(/[^a-z\\s]/g, '');\n        \n        positiveWords.forEach(word => {\n            if (cleanedText.includes(word)) score += 1;\n        });\n        \n        negativeWords.forEach(word => {\n            if (cleanedText.includes(word)) score -= 1;\n        });\n    }\n});\n\n// Lógica de decisión\nlet signal = 'Mantener posición';\nlet confidence = 'Baja';\n\nif (score > 2 && movementPercentage > 1) {\n    signal = `COMPRAR ${asset}`;\n    confidence = 'Alta';\n} else if (score > 0 && movementPercentage > 0) {\n    signal = `Considerar COMPRA de ${asset}`;\n    confidence = 'Media';\n} else if (score < -2 || movementPercentage < -3) {\n    signal = `EVITAR comprar ${asset}`;\n    confidence = 'Alta';\n}\n\n// Proyección basada en sentimiento y precio\nconst projectedChange = (score * 0.5) + (movementPercentage * 0.3);\n\n// Retorno final\nreturn [{\n    json: {\n        signal: `${signal} (Confianza: ${confidence})`,\n        analysis: `Precio actual: $${currentPrice.toFixed(2)} | Cambio 24h: ${movementPercentage.toFixed(2)}% | Noticias recientes de ETH: ${recentNewsCount} | Score: ${score}`,\n        projectedMovement: `Movimiento esperado próximas horas: ${projectedChange > 0 ? '+' : ''}${projectedChange.toFixed(2)}%`,\n        timestamp: now.toISOString(),\n        asset,\n        currentPrice: currentPrice.toFixed(2),\n        movement24h: movementPercentage.toFixed(2),\n        sentimentScore: score,\n        recentNews: recentNewsCount\n    }\n}];"
+                "jsCode": "// CÓDIGO PARA EL NODO \"Codigo ETHEREUM\" (Análisis completo mejorado)\n// Obtener entradas de noticias y precios\nconst newsInput = $input.all().find(item => item.json.articles);\nconst response = newsInput?.json || {};\nconst articles = response.articles || [];\nconst pricesInput = $input.all().find(item => Array.isArray(item.json.prices));\nconst prices = pricesInput?.json?.prices || [];\nconst patternsInput = $input.all().find(item => item.json.patterns);\nconst patterns = patternsInput?.json?.patterns || [];\nconst technicalMetrics = patternsInput?.json?.technicalMetrics || {};\n\nif (prices.length < 2) {\n    return [{ json: { error: 'No se encontraron precios suficientes para ETH' } }];\n}\n\n// Configuración\nconst asset = 'ETH';\nconst now = new Date();\nconst lookbackPeriod = 24 * 60 * 60 * 1000; // 24 horas\nconst windowStart = new Date(now.getTime() - lookbackPeriod);\n\n// Cálculo de precio y variación en 24h\nconst currentPrice = prices[prices.length - 1][1];\nconst price24hAgo = prices[0][1];\nconst priceMovement = currentPrice - price24hAgo;\nconst movementPercentage = (priceMovement / price24hAgo) * 100;\n\n// Análisis de momentum mejorado\nconst priceData = prices.map(p => p[1]);\nconst recentPrices = priceData.slice(-12); // Últimas 12 horas\nconst momentum12h = ((recentPrices[recentPrices.length - 1] - recentPrices[0]) / recentPrices[0]) * 100;\n\n// Palabras clave para análisis de sentimiento ampliado\nconst positiveWords = ['gain', 'rise', 'bull', 'profit', 'surge', 'growth', 'strong', 'up', 'bullish', 'rally', 'pump', 'moon', 'breakthrough', 'adoption', 'institutional', 'upgrade', 'launch'];\nconst negativeWords = ['loss', 'fall', 'bear', 'drop', 'weak', 'down', 'decline', 'crash', 'bearish', 'dump', 'sell-off', 'correction', 'regulatory', 'hack', 'concern', 'delay'];\n\nlet sentimentScore = 0;\nlet recentNewsCount = 0;\nlet newsImpact = 0;\n\n// Evaluar sentimiento en noticias recientes relacionadas con ETH\narticles.forEach(article => {\n    const publishedDate = new Date(article.publishedAt);\n    const text = (article.title + ' ' + (article.description || '')).toLowerCase();\n    \n    // Solo analizar si mencionan Ethereum o ETH\n    if (publishedDate > windowStart && (text.includes('ethereum') || text.includes(' eth ') || text.includes('vitalik'))) {\n        recentNewsCount++;\n        const cleanedText = text.replace(/[^a-z\\s]/g, '');\n        \n        let articleScore = 0;\n        positiveWords.forEach(word => {\n            const matches = (cleanedText.match(new RegExp(word, 'g')) || []).length;\n            articleScore += matches;\n        });\n        \n        negativeWords.forEach(word => {\n            const matches = (cleanedText.match(new RegExp(word, 'g')) || []).length;\n            articleScore -= matches;\n        });\n        \n        // Peso por recencia (noticias más recientes tienen más peso)\n        const hoursAgo = (now - publishedDate) / (1000 * 60 * 60);\n        const recencyWeight = Math.max(0.1, 1 - (hoursAgo / 24));\n        \n        sentimentScore += articleScore * recencyWeight;\n        newsImpact += Math.abs(articleScore) * recencyWeight;\n    }\n});\n\n// Análisis de patrones técnicos para señales\nlet patternSignal = 0;\nlet patternConfidence = 0;\n\npatterns.forEach(pattern => {\n    const patternLower = pattern.toLowerCase();\n    \n    // Patrones alcistas\n    if (patternLower.includes('alcista') || patternLower.includes('suelo') || patternLower.includes('rebote') || patternLower.includes('sobrevendido')) {\n        patternSignal += 1;\n        patternConfidence += 0.2;\n    }\n    \n    // Patrones bajistas\n    if (patternLower.includes('bajista') || patternLower.includes('techo') || patternLower.includes('corrección') || patternLower.includes('sobrecomprado') || patternLower.includes('resistencia')) {\n        patternSignal -= 1;\n        patternConfidence += 0.2;\n    }\n    \n    // Patrones de consolidación\n    if (patternLower.includes('lateral') || patternLower.includes('consolidación')) {\n        patternConfidence += 0.1;\n    }\n    \n    // Alta volatilidad aumenta incertidumbre\n    if (patternLower.includes('volatilidad')) {\n        patternConfidence -= 0.1;\n    }\n});\n\n// Lógica de decisión mejorada\nlet signal = 'Mantener posición';\nlet confidence = 'Baja';\nlet prediction24h = 0;\nlet prediction12h = 0;\n\n// Calcular predicciones basadas en múltiples factores\nconst sentimentWeight = 0.3;\nconst patternWeight = 0.4;\nconst momentumWeight = 0.3;\n\nconst combinedSignal = (sentimentScore * sentimentWeight) + (patternSignal * patternWeight) + (momentum12h * momentumWeight);\n\n// Predicción para 24 horas\nprediction24h = combinedSignal * 0.8; // Factor de atenuación\n\n// Predicción para 12 horas (más conservadora)\nprediction12h = combinedSignal * 0.4;\n\n// Ajustar señales de trading\nif (combinedSignal > 2 && movementPercentage > 1 && patternConfidence > 0.3) {\n    signal = `COMPRAR ${asset}`;\n    confidence = 'Alta';\n} else if (combinedSignal > 1 && movementPercentage > 0) {\n    signal = `Considerar COMPRA de ${asset}`;\n    confidence = 'Media';\n} else if (combinedSignal < -2 || (movementPercentage < -3 && patternSignal < 0)) {\n    signal = `EVITAR comprar ${asset}`;\n    confidence = 'Alta';\n} else if (combinedSignal < -1) {\n    signal = `Considerar VENTA de ${asset}`;\n    confidence = 'Media';\n}\n\n// Ajustar confianza basada en volumen de datos\nif (recentNewsCount < 3 && patterns.length < 2) {\n    confidence = 'Baja';\n}\n\n// Retorno final con métricas expandidas\nreturn [{\n    json: {\n        signal: `${signal} (Confianza: ${confidence})`,\n        analysis: `Precio actual: $${currentPrice.toFixed(2)} | Cambio 24h: ${movementPercentage.toFixed(2)}% | Momentum 12h: ${momentum12h.toFixed(2)}% | Noticias: ${recentNewsCount} | Patrones: ${patterns.length}`,\n        predictions: {\n            movement24h: `${prediction24h > 0 ? '+' : ''}${prediction24h.toFixed(2)}%`,\n            movement12h: `${prediction12h > 0 ? '+' : ''}${prediction12h.toFixed(2)}%`\n        },\n        timestamp: now.toISOString(),\n        asset,\n        currentPrice: currentPrice.toFixed(2),\n        movement24h: movementPercentage.toFixed(2),\n        momentum12h: momentum12h.toFixed(2),\n        sentimentScore: sentimentScore.toFixed(1),\n        patternSignal: patternSignal,\n        patternConfidence: patternConfidence.toFixed(2),\n        recentNews: recentNewsCount,\n        patterns: patterns,\n        technicalMetrics: technicalMetrics,\n        combinedSignal: combinedSignal.toFixed(2),\n        newsImpact: newsImpact.toFixed(1)\n    }\n}];"
             },
             "type": "n8n-nodes-base.code",
             "typeVersion": 2,
             "position": [
-                400,
-                0
+                512,
+                -240
             ],
-            "id": "5ac843dd-ffd9-44a1-bed9-f71e07b678a2",
+            "id": "242dd643-b381-410b-b218-f4c6c40cf12e",
             "name": "Codigo ETHEREUM"
         },
         {
@@ -173,10 +65,10 @@
             "type": "n8n-nodes-base.webhook",
             "typeVersion": 2,
             "position": [
-                -496,
-                224
+                -320,
+                -160
             ],
-            "id": "57ddb17f-b7c4-4220-9093-1c345a4d0bc0",
+            "id": "586db682-7d23-429a-b118-bbc0bd57fee9",
             "name": "Webhook",
             "webhookId": "45ec9f4b-c579-42f3-84db-cd4d9267b647"
         },
@@ -187,10 +79,10 @@
             "type": "n8n-nodes-base.respondToWebhook",
             "typeVersion": 1.1,
             "position": [
-                688,
-                224
+                1200,
+                -160
             ],
-            "id": "6c136d7a-1660-4261-a210-f8958d6dc865",
+            "id": "192c7f10-9fbc-461a-86fb-a62ef11cc3b7",
             "name": "Respond to Webhook"
         },
         {
@@ -221,54 +113,6 @@
                             },
                             "renameOutput": true,
                             "outputKey": "ETHEREUM"
-                        },
-                        {
-                            "conditions": {
-                                "options": {
-                                    "caseSensitive": true,
-                                    "leftValue": "",
-                                    "typeValidation": "strict",
-                                    "version": 2
-                                },
-                                "conditions": [
-                                    {
-                                        "id": "b645bd69-544c-43fc-9b6f-76fb949edc5d",
-                                        "leftValue": "={{ $json.body.moneda }}",
-                                        "rightValue": "bitcoin",
-                                        "operator": {
-                                            "type": "string",
-                                            "operation": "equals",
-                                            "name": "filter.operator.equals"
-                                        }
-                                    }
-                                ],
-                                "combinator": "and"
-                            },
-                            "renameOutput": true,
-                            "outputKey": "BITCOIN"
-                        },
-                        {
-                            "conditions": {
-                                "options": {
-                                    "caseSensitive": true,
-                                    "leftValue": "",
-                                    "typeValidation": "strict",
-                                    "version": 2
-                                },
-                                "conditions": [
-                                    {
-                                        "leftValue": "={{ $json.body.moneda }}",
-                                        "rightValue": "solana",
-                                        "operator": {
-                                            "type": "string",
-                                            "operation": "equals"
-                                        }
-                                    }
-                                ],
-                                "combinator": "and"
-                            },
-                            "renameOutput": true,
-                            "outputKey": "SOLANA"
                         }
                     ]
                 },
@@ -277,11 +121,64 @@
             "type": "n8n-nodes-base.switch",
             "typeVersion": 3.2,
             "position": [
-                -288,
-                208
+                -448,
+                -416
             ],
-            "id": "25d87e37-d807-49ce-8315-c3b701bdb59a",
+            "id": "038497f0-6cca-4ca1-9397-27796bf6ba89",
             "name": "Switch"
+        },
+        {
+            "parameters": {
+                "jsCode": "// CÓDIGO PARA EL NODO \"Code\" (Análisis de patrones)\nconst prices = $input.item.json.prices || [];\n\nfunction detectPatterns(prices) {\n    const patterns = [];\n    const priceData = prices.map(p => p[1]); // Solo los precios\n    const timeData = prices.map(p => p[0]); // Solo los timestamps\n    \n    // Análisis de tendencias más robusto\n    function calculateMovingAverage(data, period) {\n        const result = [];\n        for (let i = period - 1; i < data.length; i++) {\n            const sum = data.slice(i - period + 1, i + 1).reduce((a, b) => a + b, 0);\n            result.push(sum / period);\n        }\n        return result;\n    }\n    \n    // Calcular RSI simplificado\n    function calculateRSI(prices, period = 14) {\n        if (prices.length < period + 1) return 50; // Valor neutro si no hay suficientes datos\n        \n        let gains = 0, losses = 0;\n        for (let i = 1; i <= period; i++) {\n            const change = prices[prices.length - i] - prices[prices.length - i - 1];\n            if (change > 0) gains += change;\n            else losses += Math.abs(change);\n        }\n        \n        const avgGain = gains / period;\n        const avgLoss = losses / period;\n        const rs = avgGain / avgLoss;\n        return 100 - (100 / (1 + rs));\n    }\n    \n    // Detectar soportes y resistencias\n    function findSupportResistance(prices) {\n        const highs = [], lows = [];\n        for (let i = 1; i < prices.length - 1; i++) {\n            if (prices[i] > prices[i-1] && prices[i] > prices[i+1]) {\n                highs.push(prices[i]);\n            }\n            if (prices[i] < prices[i-1] && prices[i] < prices[i+1]) {\n                lows.push(prices[i]);\n            }\n        }\n        return { resistance: Math.max(...highs), support: Math.min(...lows) };\n    }\n    \n    if (priceData.length < 10) {\n        patterns.push(\"Datos insuficientes\");\n        return patterns;\n    }\n    \n    const currentPrice = priceData[priceData.length - 1];\n    const ma5 = calculateMovingAverage(priceData, 5);\n    const ma20 = calculateMovingAverage(priceData, Math.min(20, priceData.length - 1));\n    const rsi = calculateRSI(priceData);\n    const supportResistance = findSupportResistance(priceData);\n    \n    // Patrones de velas más precisos\n    for (let i = 2; i < priceData.length - 1; i++) {\n        const prev2 = priceData[i - 2];\n        const prev1 = priceData[i - 1];\n        const current = priceData[i];\n        const next = priceData[i + 1];\n        \n        // Doble techo\n        if (prev1 > prev2 && prev1 > current && Math.abs(prev1 - current) / prev1 > 0.02) {\n            patterns.push(\"Doble techo - Señal bajista\");\n        }\n        \n        // Doble suelo\n        if (prev1 < prev2 && prev1 < current && Math.abs(current - prev1) / prev1 > 0.02) {\n            patterns.push(\"Doble suelo - Señal alcista\");\n        }\n        \n        // Martillo\n        const bodySize = Math.abs(current - prev1) / prev1;\n        if (bodySize < 0.01 && current > prev1 * 0.98) {\n            patterns.push(\"Martillo - Potencial reversión alcista\");\n        }\n    }\n    \n    // Análisis de tendencias con MA\n    if (ma5.length > 0 && ma20.length > 0) {\n        const ma5Current = ma5[ma5.length - 1];\n        const ma20Current = ma20[ma20.length - 1];\n        \n        if (ma5Current > ma20Current && currentPrice > ma5Current) {\n            patterns.push(\"Tendencia alcista fuerte\");\n        } else if (ma5Current < ma20Current && currentPrice < ma5Current) {\n            patterns.push(\"Tendencia bajista fuerte\");\n        } else {\n            patterns.push(\"Tendencia lateral/consolidación\");\n        }\n    }\n    \n    // Análisis RSI\n    if (rsi > 70) {\n        patterns.push(\"RSI sobrecomprado - Posible corrección\");\n    } else if (rsi < 30) {\n        patterns.push(\"RSI sobrevendido - Posible rebote\");\n    }\n    \n    // Análisis de soporte/resistencia\n    const distanceToResistance = (supportResistance.resistance - currentPrice) / currentPrice;\n    const distanceToSupport = (currentPrice - supportResistance.support) / currentPrice;\n    \n    if (distanceToResistance < 0.02) {\n        patterns.push(\"Cerca de resistencia - Presión vendedora\");\n    }\n    if (distanceToSupport < 0.02) {\n        patterns.push(\"Cerca de soporte - Posible rebote\");\n    }\n    \n    // Volatilidad\n    const recentPrices = priceData.slice(-10);\n    const volatility = Math.sqrt(recentPrices.reduce((sum, price, i) => {\n        if (i === 0) return 0;\n        const change = (price - recentPrices[i-1]) / recentPrices[i-1];\n        return sum + change * change;\n    }, 0) / (recentPrices.length - 1));\n    \n    if (volatility > 0.05) {\n        patterns.push(\"Alta volatilidad - Mayor riesgo\");\n    } else if (volatility < 0.01) {\n        patterns.push(\"Baja volatilidad - Posible ruptura próxima\");\n    }\n    \n    return [...new Set(patterns)];\n}\n\nconst detectedPatterns = detectPatterns(prices);\n\n// Calcular métricas adicionales\nconst priceData = prices.map(p => p[1]);\nconst currentPrice = priceData[priceData.length - 1];\nconst price24hAgo = priceData[0];\nconst priceChange24h = ((currentPrice - price24hAgo) / price24hAgo) * 100;\n\n// Calcular volatilidad reciente\nconst recentPrices = priceData.slice(-24); // Últimas 24 horas\nconst avgPrice = recentPrices.reduce((a, b) => a + b, 0) / recentPrices.length;\nconst variance = recentPrices.reduce((sum, price) => sum + Math.pow(price - avgPrice, 2), 0) / recentPrices.length;\nconst volatility = Math.sqrt(variance) / avgPrice;\n\nreturn [{\n    json: {\n        ...$input.item.json,\n        patterns: detectedPatterns,\n        technicalMetrics: {\n            currentPrice: currentPrice.toFixed(2),\n            priceChange24h: priceChange24h.toFixed(2),\n            volatility: (volatility * 100).toFixed(2),\n            dataPoints: prices.length\n        }\n    }\n}];"
+            },
+            "type": "n8n-nodes-base.code",
+            "typeVersion": 2,
+            "position": [
+                352,
+                -256
+            ],
+            "id": "425f3547-549f-4212-96b4-57c7a133b232",
+            "name": "Code"
+        },
+        {
+            "parameters": {
+                "jsCode": "// CÓDIGO PARA EL NODO \"Code1\" (Generación de prompt mejorado para Gemini)\nconst inputData = $input.item.json;\nconst { \n    currentPrice, \n    movement24h, \n    momentum12h,\n    sentimentScore, \n    patternSignal,\n    patternConfidence,\n    patterns, \n    technicalMetrics,\n    combinedSignal,\n    newsImpact,\n    recentNews\n} = inputData;\n\n// Obtener los datos de precios de los últimos 3 días para análisis más detallado\nconst pricesInput = $input.all().find(item => Array.isArray(item.json.prices));\nconst prices = pricesInput?.json?.prices || [];\n\n// Convertir precios a formato más legible para la IA\nconst priceHistory = prices.map((price, index) => {\n    const timestamp = new Date(price[0]);\n    const priceValue = price[1];\n    return `${timestamp.toISOString().slice(0, 16)}: $${priceValue.toFixed(2)}`;\n}).slice(-72); // Últimas 72 horas (3 días)\n\nconst prompt = `\nEres un analista técnico senior especializado en criptomonedas con 15+ años de experiencia. Analiza Ethereum usando TODOS los patrones técnicos conocidos y proporciona predicciones precisas para las próximas 24 horas.\n\n═══════════════════════════════════════════════════════════════════\n📊 DATOS DE PRECIO (ÚLTIMOS 3 DÍAS - 72 HORAS)\n═══════════════════════════════════════════════════════════════════\n${priceHistory.join('\\n')}\n\n═══════════════════════════════════════════════════════════════════\n📈 MÉTRICAS ACTUALES\n═══════════════════════════════════════════════════════════════════\n• Precio actual: $${currentPrice}\n• Cambio 24h: ${movement24h}%\n• Momentum 12h: ${momentum12h}%\n• Volatilidad: ${technicalMetrics?.volatility || 'N/A'}%\n• Puntos de datos analizados: ${technicalMetrics?.dataPoints || 'N/A'}\n\n═══════════════════════════════════════════════════════════════════\n📰 ANÁLISIS DE SENTIMIENTO\n═══════════════════════════════════════════════════════════════════\n• Score de sentimiento: ${sentimentScore}\n• Impacto de noticias: ${newsImpact}\n• Noticias recientes analizadas: ${recentNews}\n• Señal combinada: ${combinedSignal}\n\n═══════════════════════════════════════════════════════════════════\n🔍 PATRONES DETECTADOS AUTOMÁTICAMENTE\n═══════════════════════════════════════════════════════════════════\n${patterns?.join('\\n• ') || 'Ninguno detectado automáticamente'}\n• Señal de patrones: ${patternSignal}\n• Confianza en patrones: ${patternConfidence}\n\n═══════════════════════════════════════════════════════════════════\n🎯 INSTRUCCIONES PARA ANÁLISIS COMPLETO\n═══════════════════════════════════════════════════════════════════\n\n1. ANÁLISIS DE PATRONES TÉCNICOS COMPLETO:\n   Busca e identifica TODOS los patrones posibles en los datos de precios:\n\n   A) PATRONES DE REVERSIÓN:\n   - Doble techo / Doble suelo\n   - Cabeza y hombros / Cabeza y hombros invertida\n   - Triple techo / Triple suelo\n   - Martillo / Doji / Estrella fugaz\n   - Envolvente alcista/bajista\n   - Piercing line / Dark cloud cover\n\n   B) PATRONES DE CONTINUACIÓN:\n   - Triángulos (ascendente, descendente, simétrico)\n   - Banderas / Banderines\n   - Cuñas (ascendente, descendente)\n   - Rectángulos\n   - Copa con asa\n\n   C) ANÁLISIS DE VELAS JAPONESAS:\n   - Patrones de 1, 2 y 3 velas\n   - Gaps (huecos en el precio)\n   - Sombras largas/cortas\n   - Cuerpos reales grandes/pequeños\n\n   D) INDICADORES TÉCNICOS:\n   - RSI (sobrecomprado/sobrevendido)\n   - MACD (convergencia/divergencia)\n   - Bollinger Bands (bandas de volatilidad)\n   - Medias móviles (crossovers)\n   - Volumen (confirmación de movimientos)\n\n   E) ANÁLISIS DE FIBONACCI:\n   - Retrocesos de Fibonacci\n   - Extensiones de Fibonacci\n   - Niveles de soporte/resistencia\n\n   F) ANÁLISIS DE ONDAS:\n   - Patrones de Elliott Wave\n   - Ondas impulsivas vs correctivas\n   - Subdivisiones de ondas\n\n2. FACTORES CONTEXTUALES A CONSIDERAR:\n   - Correlación con Bitcoin y mercado cripto general\n   - Eventos macroeconómicos recientes\n   - Actualizaciones técnicas de Ethereum\n   - Flujos institucionales\n   - Métricas on-chain (si aplicable)\n\n3. ANÁLISIS DE TIMEFRAMES:\n   - Tendencia primaria (72h)\n   - Tendencia secundaria (24h)\n   - Tendencia terciaria (12h)\n   - Micro-tendencias (1-4h)\n\n4. GESTIÓN DE RIESGO:\n   - Niveles de stop-loss sugeridos\n   - Ratios riesgo/beneficio\n   - Niveles de entrada óptimos\n\n═══════════════════════════════════════════════════════════════════\n📋 FORMATO DE RESPUESTA REQUERIDO\n═══════════════════════════════════════════════════════════════════\n\nResponde EXACTAMENTE en este formato (sin texto adicional):\n\nANÁLISIS_TÉCNICO:\nPatrones_identificados: [Lista todos los patrones encontrados]\nTendencia_primaria: [Alcista/Bajista/Lateral]\nTendencia_24h: [Alcista/Bajista/Lateral]\nFuerza_tendencia: [Muy_fuerte/Fuerte/Moderada/Débil]\nSoporte_clave: $[precio]\nResistencia_clave: $[precio]\nRSI_interpretación: [Sobrecomprado/Neutral/Sobrevendido]\nVolumen_confirmación: [Alto/Medio/Bajo]\n\nPREDICCIONES:\nPredicción_24h: [+/-X.X%]\nPredicción_12h: [+/-X.X%]\nProbabilidad_subida: [XX%]\nProbabilidad_bajada: [XX%]\nRango_esperado_24h: $[min] - $[max]\n\nSEÑALES_TRADING:\nSeñal_principal: [COMPRAR/VENDER/MANTENER]\nConfianza: [Alta/Media/Baja]\nStop_loss: $[precio]\nTake_profit_1: $[precio]\nTake_profit_2: $[precio]\nRazón_principal: [Explicación en una línea]\n\nFACTORES_CLAVE:\nFactor_1: [Descripción breve]\nFactor_2: [Descripción breve]\nFactor_3: [Descripción breve]\nRiesgo_principal: [Descripción del mayor riesgo]\n\nNO agregues explicaciones adicionales fuera de este formato.\n`.trim();\n\nreturn [{\n    json: {\n        prompt: prompt,\n        inputData: inputData,\n        priceHistory: priceHistory // Para debugging si es necesario\n    }\n}];"
+            },
+            "type": "n8n-nodes-base.code",
+            "typeVersion": 2,
+            "position": [
+                688,
+                -160
+            ],
+            "id": "5464128f-338a-468f-8317-ecc2a535d2c4",
+            "name": "Code1"
+        },
+        {
+            "parameters": {
+                "method": "POST",
+                "url": "=https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=AIzaSyCAfVBaEa5ighjQTXrPGxFiEKdl55G7tcY",
+                "sendHeaders": true,
+                "headerParameters": {
+                    "parameters": [
+                        {
+                            "name": "Content-Type",
+                            "value": "application/json"
+                        }
+                    ]
+                },
+                "sendBody": true,
+                "contentType": "raw",
+                "body": "={   \"contents\": [     {       \"parts\": [         {           \"text\": \"={{ $json.prompt }}\"         }       ]     }   ],   \"generationConfig\": {     \"temperature\": 0.7,     \"topK\": 40,     \"topP\": 0.95,     \"maxOutputTokens\": 2048,     \"stopSequences\": []   },   \"safetySettings\": [     {       \"category\": \"HARM_CATEGORY_HARASSMENT\",       \"threshold\": \"BLOCK_MEDIUM_AND_ABOVE\"     },     {       \"category\": \"HARM_CATEGORY_HATE_SPEECH\",       \"threshold\": \"BLOCK_MEDIUM_AND_ABOVE\"     },     {       \"category\": \"HARM_CATEGORY_SEXUALLY_EXPLICIT\",       \"threshold\": \"BLOCK_MEDIUM_AND_ABOVE\"     },     {       \"category\": \"HARM_CATEGORY_DANGEROUS_CONTENT\",       \"threshold\": \"BLOCK_MEDIUM_AND_ABOVE\"     }   ] }",
+                "options": {}
+            },
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 4.2,
+            "position": [
+                912,
+                -256
+            ],
+            "id": "f1270231-892a-4ee9-a2fe-5253dea03efd",
+            "name": "Gemini Request"
         }
     ],
     "pinData": {
@@ -327,55 +224,11 @@
         ]
     },
     "connections": {
-        "Noticias SOLANA": {
-            "main": [
-                [
-                    {
-                        "node": "Coingecko Solana",
-                        "type": "main",
-                        "index": 0
-                    }
-                ]
-            ]
-        },
-        "Noticias BITCOIN": {
-            "main": [
-                [
-                    {
-                        "node": "Coingecko Bitocin",
-                        "type": "main",
-                        "index": 0
-                    }
-                ]
-            ]
-        },
-        "Coingecko Bitocin": {
-            "main": [
-                [
-                    {
-                        "node": "Codigo BITCOIN",
-                        "type": "main",
-                        "index": 0
-                    }
-                ]
-            ]
-        },
-        "Coingecko Solana": {
-            "main": [
-                [
-                    {
-                        "node": "Codigo SOLANA",
-                        "type": "main",
-                        "index": 0
-                    }
-                ]
-            ]
-        },
         "Coingecko Ethereum": {
             "main": [
                 [
                     {
-                        "node": "Codigo ETHEREUM",
+                        "node": "Code",
                         "type": "main",
                         "index": 0
                     }
@@ -397,7 +250,7 @@
             "main": [
                 [
                     {
-                        "node": "Switch",
+                        "node": "Noticias ETHEREUM",
                         "type": "main",
                         "index": 0
                     }
@@ -406,52 +259,43 @@
         },
         "Switch": {
             "main": [
-                [
-                    {
-                        "node": "Noticias ETHEREUM",
-                        "type": "main",
-                        "index": 0
-                    }
-                ],
-                [
-                    {
-                        "node": "Noticias BITCOIN",
-                        "type": "main",
-                        "index": 0
-                    }
-                ],
-                [
-                    {
-                        "node": "Noticias SOLANA",
-                        "type": "main",
-                        "index": 0
-                    }
-                ]
+                []
             ]
         },
         "Codigo ETHEREUM": {
             "main": [
                 [
                     {
-                        "node": "Respond to Webhook",
+                        "node": "Code1",
                         "type": "main",
                         "index": 0
                     }
                 ]
             ]
         },
-        "Codigo BITCOIN": {
+        "Code": {
             "main": [
                 [
                     {
-                        "node": "Respond to Webhook",
+                        "node": "Codigo ETHEREUM",
                         "type": "main",
                         "index": 0
                     }
                 ]
             ]
         },
-        "Codigo SOLANA": {
+        "Code1": {
+            "main": [
+                [
+                    {
+                        "node": "Gemini Request",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Gemini Request": {
             "main": [
                 [
                     {
@@ -467,10 +311,10 @@
     "settings": {
         "executionOrder": "v1"
     },
-    "versionId": "8cd72e3e-0920-4cb7-82bb-b8234805e723",
+    "versionId": "7f8d3c3f-4771-4b15-8a77-f2ac3692e284",
     "meta": {
-        "instanceId": "401cd48fee9ca019b653123bfa8811b0aed8324f9072f2501c511be45881c373"
+        "instanceId": "69df0a9466ccb7100fb298afa377f37cdba95cadb52a5133fcd3d6f9ceaa24fa"
     },
-    "id": "NCVYkIwGo9DNS5rn",
+    "id": "sieKTCeMhsF3iJFu",
     "tags": []
 }
